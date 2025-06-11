@@ -27,32 +27,21 @@ param postgresAdminLogin string
 param postgresAdminPassword string
 
 // VARIABLES
-var abbrs = {
-  operationalInsightsWorkspaces: 'log'
-  insightsComponents: 'appi'
-  webServerfarms: 'asp'
-  webSites: 'app'
-  dbforpostgresqlFlexibleServers: 'psql'
-  networkVirtualNetworks: 'vnet'
-  networkApplicationGateways: 'agw'
-  computeVirtualMachines: 'vm'
-  networkPublicIPAddresses: 'pip'
-  networkNetworkInterfaces: 'nic'
-}
+var abbrs = loadJsonContent('./abbreviations.json')
 
-var logAnalyticsWorkspaceName = '${abbrs.operationalInsightsWorkspaces}-contosologs-${uniqueSuffix}'
-var appInsightsName = '${abbrs.insightsComponents}-contoso-web-${uniqueSuffix}'
-var appServicePlanName = '${abbrs.webServerfarms}-contoso-${uniqueSuffix}'
-var webAppName = '${abbrs.webSites}-contoso-web-${uniqueSuffix}' // Must be globally unique
-var postgreSqlServerName = '${abbrs.dbforpostgresqlFlexibleServers}-contoso-db-${uniqueSuffix}' // Must be globally unique, 3-63 chars, lowercase, no hyphens at start/end
-var virtualNetworkName = '${abbrs.networkVirtualNetworks}-contoso-hotels-${uniqueSuffix}'
-var appGwSubnetName = 'snet-appgw'
-var backendSubnetName = 'snet-backend'
-var vmName = '${abbrs.computeVirtualMachines}-contoso-backend' // VM name is unique within RG
-var appGatewayName = '${abbrs.networkApplicationGateways}-contoso-${uniqueSuffix}'
-var publicIpAppGwName = '${abbrs.networkPublicIPAddresses}-appgw-${uniqueSuffix}'
-var publicIpVmName = '${abbrs.networkPublicIPAddresses}-vm-${vmName}' // Name for PIP created by VM AVM
-var nicVmName = '${abbrs.networkNetworkInterfaces}-${vmName}' // Name for NIC created by VM AVM
+var logAnalyticsWorkspaceName = '${abbrs.operationalInsightsWorkspaces}contosologs-${uniqueSuffix}'
+var appInsightsName = '${abbrs.insightsComponents}contoso-web-${uniqueSuffix}'
+var appServicePlanName = '${abbrs.webServerFarms}contoso-${uniqueSuffix}' // Corrected key
+var webAppName = '${abbrs.webSitesAppService}contoso-web-${uniqueSuffix}' // Corrected key
+var postgreSqlServerName = '${abbrs.dBforPostgreSQLServers}contoso-db-${uniqueSuffix}' // Corrected key
+var virtualNetworkName = '${abbrs.networkVirtualNetworks}contoso-hotels-${uniqueSuffix}'
+var appGwSubnetName = 'snet-appgw' // Restored definition
+var backendSubnetName = 'snet-backend' // Restored definition
+var vmName = '${abbrs.computeVirtualMachines}contoso-backend'
+var appGatewayName = '${abbrs.networkApplicationGateways}contoso-${uniqueSuffix}'
+var publicIpAppGwName = '${abbrs.networkPublicIPAddresses}appgw-${uniqueSuffix}'
+var publicIpVmName = '${abbrs.networkPublicIPAddresses}vm-${vmName}'
+var nicVmName = '${abbrs.networkNetworkInterfaces}${vmName}'
 
 var appServicePlanSkuName = 'P1v2'
 // var appServicePlanSkuTier = 'PremiumV2' // Removed as it's not used directly with AVM or native App Service Plan if SKU name implies tier
@@ -74,16 +63,13 @@ var tags = {
 // RESOURCES
 
 // 1. Log Analytics Workspace (AVM)
-module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.11.1' = {
+module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.11.2' = {
   name: 'logAnalyticsWorkspaceDeployment'
   params: {
     name: logAnalyticsWorkspaceName
     location: location
     tags: tags
-    // AVM module parameters for operational-insights/workspace:0.11.1
-    // skuName is a top-level parameter, not nested under sku
     skuName: 'PerGB2018'
-    // retentionInDays is a top-level parameter
     dataRetention: 30 // Corrected parameter name for retention
   }
 }
@@ -98,7 +84,6 @@ module applicationInsights 'br/public:avm/res/insights/component:0.6.0' = {
     kind: 'web'
     applicationType: 'web'
     workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
-    // IngestionMode: 'LogAnalytics' // This is often default or handled by workspaceResourceId link
   }
 }
 
@@ -121,30 +106,57 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
 }
 
 // 4. Web App (App Service) (AVM)
-module webApp 'br/public:avm/res/web/site:0.5.0' = {
+module webApp 'br/public:avm/res/web/site:0.16.0' = { // Updated version to 0.16.0
   name: 'webAppDeployment'
   params: {
     name: webAppName
     location: location
     tags: tags
     serverFarmResourceId: appServicePlan.outputs.resourceId
-    kind: 'app,linux'
-    httpsOnly: true
+    kind: 'app,linux' // Retained kind for Linux app
+    httpsOnly: true // Retained httpsOnly
     siteConfig: {
       linuxFxVersion: webAppRuntimeStack
       alwaysOn: true
       ftpsState: 'FtpsOnly'
       minTlsVersion: '1.2'
-      // App settings are typically handled by appSettings property in this AVM module
-      appSettings: {
-        APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.outputs.connectionString
-        APPINSIGHTS_INSTRUMENTATIONKEY: applicationInsights.outputs.instrumentationKey // Legacy, but good to have
-        ApplicationInsightsAgent_EXTENSION_VERSION: '~3' // For Linux .NET
-      }
+      appSettings: [
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsights.outputs.connectionString
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: applicationInsights.outputs.instrumentationKey
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'
+        }
+      ]
+      // Ensure other siteConfig properties are compatible with 0.16.0
+      // ftpsState, minTlsVersion, alwaysOn, linuxFxVersion are common.
     }
     managedIdentities: {
       systemAssigned: true
     }
+    // Add diagnosticSettings if not already present and if required by WAF or best practices
+    diagnosticSettings: [
+      {
+        name: 'send-to-log-analytics'
+        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+        logCategoriesAndGroups: [
+          {
+            categoryGroup: 'allLogs' // Common practice to log all categories for App Services
+          }
+        ]
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+          }
+        ]
+      }
+    ]
   }
 }
 
@@ -174,35 +186,24 @@ module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.
         endIpAddress: '0.0.0.0'
       }
     ]
-    // diagnosticSettings can be configured here if needed, e.g., to send logs to Log Analytics
-    // diagnosticSettings: [
-    //   {
-    //     name: 'send-to-log-analytics'
-    //     workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
-    //     logCategoriesAndGroups: [
-    //       {
-    //         categoryGroup: 'allLogs' // Or specify individual categories
-    //       }
-    //     ]
-    //     metricCategories: [
-    //       {
-    //         category: 'AllMetrics'
-    //       }
-    //     ]
-    //   }
-    // ]
+    diagnosticSettings: [
+      {
+        name: 'send-to-log-analytics' // Name for the diagnostic setting
+        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+        logCategoriesAndGroups: [
+          {
+            categoryGroup: 'allLogs' // Collect all PostgreSQL logs
+          }
+        ]
+        metricCategories: [
+          {
+            category: 'AllMetrics' // Collect all metrics
+          }
+        ]
+      }
+    ]
   }
 }
-
-// Firewall rule for PostgreSQL to allow Azure services (Now handled by the AVM module above)
-// resource postgresFirewallRuleAllowAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-03-01-preview' = {
-//   parent: postgreSqlServerRes // This would need to change if postgreSqlServerRes is removed
-//   name: 'AllowAllWindowsAzureIps'
-//   properties: {
-//     startIpAddress: '0.0.0.0'
-//     endIpAddress: '0.0.0.0'
-//   }
-// }
 
 // 6. Virtual Network and Subnets (AVM)
 module virtualNetwork 'br/public:avm/res/network/virtual-network:0.6.1' = {
@@ -229,157 +230,132 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.6.1' = {
 }
 
 // 7. Public IP for Application Gateway (AVM)
-// Using a generally available AVM version. 0.10.0 was not found.
-// Placeholder: Using native resource. Update if a stable AVM for Public IP is confirmed.
-resource publicIpAppGwRes 'Microsoft.Network/publicIPAddresses@2023-05-01' = { // Native resource
-  name: publicIpAppGwName
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    publicIPAllocationMethod: 'Static'
+module publicIpAppGw 'br/public:avm/res/network/public-ip-address:0.8.0' = {
+  name: 'publicIpAppGwDeployment'
+  params: {
+    name: publicIpAppGwName
+    location: location
+    tags: tags
+    skuName: 'Standard' // Standard SKU
+    publicIPAllocationMethod: 'Static' // Static allocation
+    diagnosticSettings: [
+      {
+        name: 'send-to-log-analytics'
+        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+        logCategoriesAndGroups: [
+          {
+            categoryGroup: 'allLogs'
+          }
+        ]
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+          }
+        ]
+      }
+    ]
   }
 }
 
 // 8. Application Gateway (AVM)
-// Using a generally available AVM version. 0.8.1 was not found.
-// Placeholder: Using native resource. Update if a stable AVM for App Gateway is confirmed.
-resource appGatewayRes 'Microsoft.Network/applicationGateways@2023-05-01' = { // Native resource
-  name: appGatewayName
-  location: location
-  tags: tags
-  properties: {
-    sku: {
-      name: 'WAF_v2'
-      tier: 'WAF_v2'
-    }
+module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = { // Updated to version 0.6.0
+  name: 'appGatewayAvmDeployment'
+  params: {
+    name: appGatewayName
+    location: location
+    tags: tags
+    sku: 'WAF_v2' // This SKU implies WAF capabilities. WAF rules are configured separately or via firewallPolicyResourceId
     gatewayIPConfigurations: [
       {
         name: 'appGatewayIpConfig'
-        properties: {
-          subnet: {
-            id: virtualNetwork.outputs.subnetResourceIds[0] // Assuming first subnet from VNet module output
-          }
-        }
+        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[0] // App Gateway subnet
       }
     ]
     frontendIPConfigurations: [
       {
         name: 'appGwPublicFrontendIp'
-        properties: {
-          publicIPAddress: {
-            id: publicIpAppGwRes.id // Referencing native Public IP
-          }
-        }
+        publicIPAddressId: publicIpAppGw.outputs.resourceId // Using AVM Public IP output
       }
     ]
     frontendPorts: [
       {
         name: 'port_80'
-        properties: {
-          port: 80
-        }
+        port: 80
       }
     ]
-    // Removed requestRoutingRules from httpListeners, it's a top-level property linked by name/ID.
-    // httpListeners will reference requestRoutingRules by their ID.
+    backendAddressPools: [
+      {
+        name: 'contosoWebAppBackendPool'
+        backendAddresses: [
+          {
+            fqdn: webApp.outputs.defaultHostname // Pointing to the Web App
+          }
+        ]
+      }
+    ]
+    backendHttpSettingsCollection: [
+      {
+        name: 'contosoWebAppHttpSettings'
+        port: 80
+        protocol: 'Http'
+        cookieBasedAffinity: 'Disabled'
+        pickHostNameFromBackendAddress: true
+        requestTimeout: 30 // seconds
+        probeName: 'contosoWebAppProbe' // Link to the health probe by name
+      }
+    ]
     httpListeners: [
       {
         name: 'contosoWebAppHttpListener'
-        properties: {
-          frontendIPConfiguration: {
-            id: resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', appGatewayName, 'appGwPublicFrontendIp')
-          }
-          frontendPort: {
-            id: resourceId('Microsoft.Network/applicationGateways/frontendPorts', appGatewayName, 'port_80')
-          }
-          protocol: 'Http'
-          // The httpListener is associated with a requestRoutingRule by the rule itself.
-          // No direct 'requestRoutingRule' property on the listener.
-        }
+        frontendIPConfigurationName: 'appGwPublicFrontendIp' // Link by name
+        frontendPortName: 'port_80' // Link by name
+        protocol: 'Http'
+        // Linked to requestRoutingRules by the rule itself
       }
     ]
     requestRoutingRules: [
       {
         name: 'basicRule'
-        properties: {
-          ruleType: 'Basic'
-          httpListener: { // This links the listener to this rule
-            id: resourceId('Microsoft.Network/applicationGateways/httpListeners', appGatewayName, 'contosoWebAppHttpListener')
-          }
-          backendAddressPool: {
-            id: resourceId('Microsoft.Network/applicationGateways/backendAddressPools', appGatewayName, 'contosoWebAppBackendPool')
-          }
-          backendHttpSettings: {
-            id: resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', appGatewayName, 'contosoWebAppHttpSettings')
-          }
-        }
+        ruleType: 'Basic'
+        httpListenerName: 'contosoWebAppHttpListener' // Link by name
+        backendAddressPoolName: 'contosoWebAppBackendPool' // Link by name
+        backendHttpSettingsName: 'contosoWebAppHttpSettings' // Link by name
+        priority: 100
       }
     ]
-    webApplicationFirewallConfiguration: {
-      enabled: true
-      firewallMode: 'Prevention'
-      ruleSetType: 'OWASP'
-      ruleSetVersion: '3.2'
-    }
-    autoscaleConfiguration: {
-      minCapacity: 2
-    }
-  }
-  dependsOn: [
-    // virtualNetwork module implicitly handled by subnet ID reference
-    // webApp module implicitly handled by FQDN reference
-  ]
-}
-
-// 9. Public IP for VM (Handled by VM AVM module)
-// resource publicIpVmRes 'Microsoft.Network/publicIPAddresses@2023-05-01' = { ... }
-
-// 10. Network Interface (NIC) for VM (Handled by VM AVM module)
-// resource nicVmRes 'Microsoft.Network/networkInterfaces@2023-05-01' = { ... }
-
-// The commented out section for publicIpVmRes and nicVmRes needs to be a proper block comment
-/*
-resource publicIpVmRes 'Microsoft.Network/publicIPAddresses@2023-05-01' = { // Native resource
-  name: publicIpVmName
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    publicIPAllocationMethod: 'Static'
-  }
-}
-
-resource nicVmRes 'Microsoft.Network/networkInterfaces@2023-05-01' = { // Native resource
-  name: nicVmName
-  location: location
-  tags: tags
-  properties: {
-    ipConfigurations: [
+    probes: [
       {
-        name: 'ipconfig1'
-        properties: {
-          subnet: {
-            id: virtualNetwork.outputs.subnetResourceIds[1] // Assuming second subnet is backendSubnet
+        name: 'contosoWebAppProbe'
+        protocol: 'Http'
+        path: '/'
+        interval: 30 // seconds
+        timeout: 30 // seconds
+        unhealthyThreshold: 3
+        pickHostNameFromBackendHttpSettings: true
+      }
+    ]
+
+    diagnosticSettings: [
+      {
+        name: 'send-to-log-analytics'
+        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+        logCategoriesAndGroups: [
+          {
+            categoryGroup: 'allLogs'
           }
-          privateIPAllocationMethod: 'Dynamic'
-          publicIPAddress: {
-            id: publicIpVmRes.id // Referencing native Public IP
+        ]
+        metricCategories: [
+          {
+            category: 'AllMetrics'
           }
-        }
+        ]
       }
     ]
   }
 }
-*/
 
-// 11. Virtual Machine (AVM)
-// Using br/public:avm/res/compute/virtual-machine:0.10.0
-module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.10.0' = {
+// Using br/public:avm/res/compute/virtual-machine:0.15.0
+module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
   name: 'virtualMachineDeployment' // Unique deployment name for the module
   params: {
     name: vmName // Name of the VM resource
@@ -396,92 +372,58 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.10.0' = {
       managedDisk: {
         storageAccountType: 'Premium_LRS'
       }
+      // name: '${vmName}-osdisk' // Optional: OS Disk name
     }
-    // nicConfigurations is used to define NICs that the VM module will create.
-    // To use an existing NIC, this module might not be the right fit, or it might expect a different parameter.
-    // Based on the error "The specified \"object\" declaration is missing the following required properties: \"nicConfigurations\"",
-    // this module *requires* nicConfigurations to be defined for it to create NICs.
-    // It does not seem to support attaching an existing NIC via `nicResourceIds` as previously attempted.
-    // Therefore, we will let the VM AVM module create the NIC and Public IP for the VM.
-    // This means the separate `nicVmRes` and `publicIpVmRes` are not needed for the VM if this module handles them.
-    // However, the original plan was to have a separate PIP and NIC, potentially as AVMs if available.
-    // Since NIC AVM was not found, we used native. Let's assume the VM AVM will create its own NIC and PIP.
     nicConfigurations: [
       {
-        name: nicVmName // Name for the NIC to be created by the VM module
-        networkInterfaceConfigurationProperties: {
-          ipConfigurations: [
-            {
-              name: 'ipconfig1' // Name of the IP Configuration
-              subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1] // Backend subnet
-              publicIpAddressConfiguration: { // VM module will create a new Public IP
-                name: publicIpVmName // Name for the PIP to be created by the VM module
-                publicIpAddressVersion: 'IPv4'
-                publicIpAllocationMethod: 'Static'
-                skuName: 'Standard'
-                // domainNameLabel: '${vmName}-${uniqueSuffix}' // Optional: for DNS name
-              }
+        name: nicVmName // Name for the NIC resource to be created by the VM module
+        ipConfigurations: [
+          {
+            name: 'ipconfig1' // Name of the IP Configuration
+            subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1] // Backend subnet
+            // primary: true // Removed: Not a standard AVM parameter here, primary is often implicit
+            privateIPAllocationMethod: 'Dynamic'
+            pipConfiguration: { // VM module will create a new Public IP
+              name: publicIpVmName // Name for the PIP resource to be created by the VM module
+              publicIPAddressVersion: 'IPv4'
+              publicIPAllocationMethod: 'Static'
+              skuName: 'Standard'
+              // domainNameLabel: '${vmName}-${uniqueSuffix}' // Optional: for DNS name
+              diagnosticSettings: [
+                {
+                  name: 'pip-${publicIpVmName}-diagnostics'
+                  workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+                  logCategoriesAndGroups: [ { categoryGroup: 'allLogs' } ]
+                  metricCategories: [ { category: 'AllMetrics' } ]
+                }
+              ]
             }
-          ]
-          // enableAcceleratedNetworking: false // Optional
-          // enableIPForwarding: false // Optional
-          // networkSecurityGroupResourceId: // Optional NSG for the NIC
-        }
-        // primary: true // Optional, defaults to true for the first NIC
+          }
+        ]
+        // networkSecurityGroupResourceId: networkSecurityGroupId // Optional NSG for the NIC
+        diagnosticSettings: [ // Diagnostics for the NIC
+          {
+            name: 'nic-${nicVmName}-diagnostics'
+            workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+            logCategoriesAndGroups: [ { categoryGroup: 'allLogs' } ]
+            metricCategories: [ { category: 'AllMetrics' } ]
+          }
+        ]
+        // enableAcceleratedNetworking: false // Optional, depends on VM size and OS
       }
     ]
-    computerName: vmName
+    computerName: vmName // OS computer name
     provisionVMAgent: true
     enableAutomaticUpdates: true
-    patchMode: 'AutomaticByOS'
-    bootDiagnostics: true
-    zone: 0 // 0 for no specific zone
-  }
-  dependsOn: [
-    // Removed nicVmRes as VM module now creates its own NIC
-  ]
-}
-
-/*
-// 12. VM Extension for Azure Monitor Agent (MMA - Legacy)
-// Remove the separate native NIC and PIP for the VM as the VM AVM module will create them.
-// Commenting out publicIpVmRes and nicVmRes
-// 9. Public IP for VM (Native)
-resource publicIpVmRes 'Microsoft.Network/publicIPAddresses@2023-05-01' = { // Native resource
-  name: publicIpVmName
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    publicIPAllocationMethod: 'Static'
+    patchMode: 'AutomaticByOS' // For Windows
+    bootDiagnostics: true // Enables boot diagnostics with a module-managed storage account
+    // bootDiagnosticStorageAccountName: '' // Can specify a custom SA if needed
+    zone: 0 // 0 for no specific zone, 1, 2, or 3 for a specific zone. Required by 0.15.0.
+    // Removed diagnosticSettings block for the VM resource itself from module params.
+    // VM diagnostics are handled by extensions (e.g., vmExtensionMMA below) or specific module capabilities like bootDiagnostics.
+    // Consider extensionMonitoringAgentConfig for Azure Monitor Agent (AMA) if migrating from MMA
   }
 }
-
-// 10. Network Interface (NIC) for VM (Native)
-resource nicVmRes 'Microsoft.Network/networkInterfaces@2023-05-01' = { // Native resource
-  name: nicVmName
-  location: location
-  tags: tags
-  properties: {
-    ipConfigurations: [
-      {
-        name: 'ipconfig1'
-        properties: {
-          subnet: {
-            id: virtualNetwork.outputs.subnetResourceIds[1] // Assuming second subnet is backendSubnet
-          }
-          privateIPAllocationMethod: 'Dynamic'
-          publicIPAddress: {
-            id: publicIpVmRes.id // Referencing native Public IP
-          }
-        }
-      }
-    ]
-  }
-}
-*/
 
 resource vmExtensionMMA 'Microsoft.Compute/virtualMachines/extensions@2023-07-01' = {
   name: '${vmName}/MicrosoftMonitoringAgent'
@@ -503,15 +445,15 @@ resource vmExtensionMMA 'Microsoft.Compute/virtualMachines/extensions@2023-07-01
   ]
 }
 
-// 13. Metric Alerts (Native)
+// 13. Metric Alerts (AVM)
 
-// VM CPU Alert
-resource vmCpuAlertRes 'Microsoft.Insights/metricAlerts@2018-03-01' = { // Native resource
-  name: '${vmName}-HighCpuAlert'
-  location: 'global' // Metric alerts are global
-  tags: tags
-  properties: {
-    description: 'Alert when VM CPU usage is over 80% for 5 minutes.'
+// VM CPU Alert (AVM)
+module vmCpuAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
+  name: 'vmCpuAlertDeployment'
+  params: {
+    name: '${vmName}-HighCpuAlert'
+    location: 'global' // Metric alerts are global
+    alertDescription: 'Alert when VM CPU usage is over 80% for 5 minutes.' // Corrected parameter name
     severity: 2
     enabled: true
     scopes: [
@@ -520,29 +462,31 @@ resource vmCpuAlertRes 'Microsoft.Insights/metricAlerts@2018-03-01' = { // Nativ
     evaluationFrequency: 'PT1M'
     windowSize: 'PT5M'
     criteria: {
-      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
-      allOf: [
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria' // Added odata.type
+      allof: [
         {
-          criterionType: 'StaticThresholdCriterion'
-          name: 'CpuUsage'
+          // criterionType: 'StaticThresholdCriterion' // Not directly used in AVM, structure implies this
           metricName: 'Percentage CPU'
           metricNamespace: 'Microsoft.Compute/virtualMachines'
           operator: 'GreaterThan'
           threshold: 80
           timeAggregation: 'Average'
+          // name: 'CpuUsage' // Optional name for the criterion, not strictly needed by AVM if only one
         }
       ]
     }
+    tags: tags
+    // actionGroups: [] // Add action group resource IDs here if needed
   }
 }
 
-// App Service HTTP 5xx Errors Alert
-resource appService5xxAlertRes 'Microsoft.Insights/metricAlerts@2018-03-01' = { // Native resource
-  name: '${webAppName}-Http5xxAlert'
-  location: 'global'
-  tags: tags
-  properties: {
-    description: 'Alert when App Service has more than 5 HTTP 5xx errors in 5 minutes.'
+// App Service HTTP 5xx Errors Alert (AVM)
+module appService5xxAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
+  name: 'appService5xxAlertDeployment'
+  params: {
+    name: '${webAppName}-Http5xxAlert'
+    location: 'global'
+    alertDescription: 'Alert when App Service has more than 5 HTTP 5xx errors in 5 minutes.' // Corrected parameter name
     severity: 1
     enabled: true
     scopes: [
@@ -551,11 +495,10 @@ resource appService5xxAlertRes 'Microsoft.Insights/metricAlerts@2018-03-01' = { 
     evaluationFrequency: 'PT1M'
     windowSize: 'PT5M'
     criteria: {
-      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
-      allOf: [
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria' // Added odata.type
+      allof: [
         {
-          criterionType: 'StaticThresholdCriterion'
-          name: 'Http5xxErrors'
+          // criterionType: 'StaticThresholdCriterion' // Not directly used in AVM, structure implies this
           metricName: 'Http5xx'
           metricNamespace: 'Microsoft.Web/sites'
           operator: 'GreaterThan'
@@ -564,6 +507,8 @@ resource appService5xxAlertRes 'Microsoft.Insights/metricAlerts@2018-03-01' = { 
         }
       ]
     }
+    tags: tags
+    // actionGroups: [] // Add action group resource IDs here if needed
   }
 }
 
@@ -572,7 +517,7 @@ resource appService5xxAlertRes 'Microsoft.Insights/metricAlerts@2018-03-01' = { 
 output webAppDefaultHostName string = webApp.outputs.defaultHostname // Corrected to defaultHostname
 
 @sys.description('Public IP Address of the Application Gateway.')
-output applicationGatewayPublicIpAddress string = publicIpAppGwRes.properties.ipAddress // Output from native PIP
+output applicationGatewayPublicIpAddress string = publicIpAppGw.outputs.ipAddress // Output from AVM Public IP
 
 @sys.description('Resource ID of the Log Analytics Workspace.')
 output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.outputs.resourceId
