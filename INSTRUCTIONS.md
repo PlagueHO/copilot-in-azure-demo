@@ -7,8 +7,8 @@ I want you to assemble:
 1. The story of the demonstration customer "Contoso Hotels" that is planning to migrate and modernize their hotel management solution to Azure as well as their front end web-booking and guest management system.
 1. Come up with a demonstration script with prompts showing how Copilot for Azure can be used to assist the following personas:
     1. Pre-sales architects/sellers
-    1. Architecture &amp; Design
-    1. Engineering &amp; DevOps
+    1. Architecture & Design
+    1. Engineering & DevOps
     1. Ops and SRE
 
 The demos should take no more than 5 minutes per persona and show a compelling narrative across all of the areas. The prompts should be clear and impactful as well as interesting. You should use https://learn.microsoft.com/en-us/azure/copilot/example-prompts as a starting point for prompts, but make them a bit more interesting and complex/challenging (stretch the limits).
