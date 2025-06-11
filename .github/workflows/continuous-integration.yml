@@ -1,0 +1,28 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - infra/**
+      - src/**
+      - tests/**
+  workflow_dispatch:
+
+permissions:
+  checks: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  lint-and-publish-bicep:
+    name: Lint and Publish Bicep
+    uses: ./.github/workflows/lint-and-publish-bicep.yml
+
+  lint-and-test-python-apps:
+    name: Lint and Test Python Apps
+    uses: ./.github/workflows/lint-and-test-python-apps.yml
+    with:
+      # List all app names (folders) in /src and /tests that should be tested
+      app_names: '["data_generator","create_ai_search_index"]'
