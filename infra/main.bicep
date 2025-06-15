@@ -514,19 +514,19 @@ module appService5xxAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
 
 // OUTPUTS
 @sys.description('Default hostname of the deployed Web App.')
-output webAppDefaultHostName string = webApp.outputs.defaultHostname // Corrected to defaultHostname
+output WEBAPP_DEFAULT_HOST_NAME string = webApp.outputs.defaultHostname // Corrected to defaultHostname
 
 @sys.description('Public IP Address of the Application Gateway.')
-output applicationGatewayPublicIpAddress string = publicIpAppGw.outputs.ipAddress // Output from AVM Public IP
+output APPLICATION_GATEWAY_PUBLIC_IP_ADDRESS string = publicIpAppGw.outputs.ipAddress // Output from AVM Public IP
 
 @sys.description('Resource ID of the Log Analytics Workspace.')
-output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.outputs.resourceId
+output LOG_ANALYTICS_WORKSPACE_ID string = logAnalyticsWorkspace.outputs.resourceId
 
 @sys.description('Connection string for Application Insights.')
-output applicationInsightsConnectionString string = applicationInsights.outputs.connectionString
+output APPLICATION_INSIGHTS_CONNECTION_STRING string = applicationInsights.outputs.connectionString
 
 @sys.description('Name of the deployed Virtual Machine.')
-output vmNameOutput string = virtualMachine.outputs.name // Output from VM AVM
+output VM_NAME_OUTPUT string = virtualMachine.outputs.name // Output from VM AVM
 
 @sys.description('Fully Qualified Domain Name (FQDN) of the PostgreSQL server.')
-output postgresServerFqdn string = postgreSqlServer.outputs.fqdn // Output from AVM PGSQL module
+output POSTGRES_SERVER_FQDN string = postgreSqlServer.outputs.fqdn // Output from AVM PGSQL module
