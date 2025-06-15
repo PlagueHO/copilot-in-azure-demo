@@ -88,13 +88,13 @@ module applicationInsights 'br/public:avm/res/insights/component:0.6.0' = {
 }
 
 // 3. App Service Plan (Linux) (AVM)
-module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
   name: 'appServicePlanDeployment'
   params: {
     name: appServicePlanName
     location: location
     tags: tags
-    // AVM module parameters for web/serverfarm:0.4.0
+    // AVM module parameters for web/serverfarm:0.4.1
     // sku is an object with name, tier, family, capacity
     skuName: appServicePlanSkuName // Corrected: skuName is a direct parameter
     // skuTier: appServicePlanSkuTier // tier is part of sku object for some modules, but direct for this one
@@ -161,7 +161,7 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = { // Updated version to 0.16
 }
 
 // 5. Azure Database for PostgreSQL - Flexible Server (AVM)
-module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.3.1' = {
+module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.12.0' = {
   name: 'postgreSqlServerDeployment'
   params: {
     name: postgreSqlServerName
@@ -169,6 +169,7 @@ module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.
     tags: tags
     skuName: postgreSqlSkuName // e.g., 'Standard_B1ms'
     tier: 'Burstable' // Must align with skuName
+    availabilityZone: -1 // No specific zone preference - required parameter in v0.12.0
     administratorLogin: postgresAdminLogin
     administratorLoginPassword: postgresAdminPassword
     version: '14' // Current version being used
@@ -178,7 +179,6 @@ module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.
     highAvailability: 'Disabled'
     // publicNetworkAccess is implicitly 'Enabled' by not providing a delegatedSubnetResourceId
     // and by setting appropriate firewall rules.
-    availabilityZone: '' // No specific zone preference (empty string for AVM module)
     firewallRules: [
       {
         name: 'AllowAllWindowsAzureIps'
@@ -206,7 +206,7 @@ module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.
 }
 
 // 6. Virtual Network and Subnets (AVM)
-module virtualNetwork 'br/public:avm/res/network/virtual-network:0.6.1' = {
+module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
   name: 'virtualNetworkDeployment'
   params: {
     name: virtualNetworkName
