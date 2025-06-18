@@ -67,7 +67,7 @@ var tags = {
 // RESOURCES
 
 // 0. Resource Group (AVM)
-module resourceGroup 'br/public:avm/res/resources/resource-group:0.4.0' = {
+module resourceGroup 'br/public:avm/res/resources/resource-group:0.4.1' = {
   name: 'resourceGroupDeployment'
   params: {
     name: resourceGroupName
