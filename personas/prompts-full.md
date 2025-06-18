@@ -1,4 +1,3 @@
-\
 # All Persona Prompts
 
 ## Persona 1: Pre-Sales Solution Architect (Alex Chen)
