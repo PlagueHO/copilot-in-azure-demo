@@ -44,3 +44,17 @@ jobs:
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+  # Optional: Add a job to use the outputs from e2e-test
+  post-deployment:
+    needs: e2e-test
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display deployment outputs
+        run: |
+          echo "=== Deployment Completed Successfully ==="
+          echo "Web App URL: https://${{ needs.e2e-test.outputs.WEBAPP_DEFAULT_HOST_NAME }}"
+          echo "Application Gateway IP: ${{ needs.e2e-test.outputs.APPLICATION_GATEWAY_PUBLIC_IP_ADDRESS }}"
+          echo "VM Name: ${{ needs.e2e-test.outputs.VM_NAME_OUTPUT }}"
+          echo "PostgreSQL Server: ${{ needs.e2e-test.outputs.POSTGRES_SERVER_FQDN }}"

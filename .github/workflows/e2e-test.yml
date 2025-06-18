@@ -20,6 +20,26 @@ on:
         required: true
         type: string
 
+    outputs:
+      WEBAPP_DEFAULT_HOST_NAME:
+        description: "Default hostname of the deployed Web App"
+        value: ${{ jobs.provision-infrastructure.outputs.WEBAPP_DEFAULT_HOST_NAME }}
+      APPLICATION_GATEWAY_PUBLIC_IP_ADDRESS:
+        description: "Public IP Address of the Application Gateway"
+        value: ${{ jobs.provision-infrastructure.outputs.APPLICATION_GATEWAY_PUBLIC_IP_ADDRESS }}
+      LOG_ANALYTICS_WORKSPACE_ID:
+        description: "Resource ID of the Log Analytics Workspace"
+        value: ${{ jobs.provision-infrastructure.outputs.LOG_ANALYTICS_WORKSPACE_ID }}
+      APPLICATION_INSIGHTS_CONNECTION_STRING:
+        description: "Connection string for Application Insights"
+        value: ${{ jobs.provision-infrastructure.outputs.APPLICATION_INSIGHTS_CONNECTION_STRING }}
+      VM_NAME_OUTPUT:
+        description: "Name of the deployed Virtual Machine"
+        value: ${{ jobs.provision-infrastructure.outputs.VM_NAME_OUTPUT }}
+      POSTGRES_SERVER_FQDN:
+        description: "Fully Qualified Domain Name (FQDN) of the PostgreSQL server"
+        value: ${{ jobs.provision-infrastructure.outputs.POSTGRES_SERVER_FQDN }}
+
     secrets:
       AZURE_TENANT_ID:
         description: "The Azure tenant ID to use for authentication to Azure for deployment"
@@ -64,10 +84,14 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.ENVIRONMENT }}
     steps:
-      - name: Echo endpoints
+      - name: Echo deployed resources
         run: |
-          echo "AI Endpoint: ${{ needs.provision-infrastructure.outputs.AZURE_AI_SERVICES_ENDPOINT }}"
-          echo "Storage Endpoint: ${{ needs.provision-infrastructure.outputs.AZURE_STORAGE_ACCOUNT_BLOB_ENDPOINT }}"
+          echo "Web App Host: ${{ needs.provision-infrastructure.outputs.WEBAPP_DEFAULT_HOST_NAME }}"
+          echo "Application Gateway IP: ${{ needs.provision-infrastructure.outputs.APPLICATION_GATEWAY_PUBLIC_IP_ADDRESS }}"
+          echo "Log Analytics Workspace: ${{ needs.provision-infrastructure.outputs.LOG_ANALYTICS_WORKSPACE_ID }}"
+          echo "Application Insights: ${{ needs.provision-infrastructure.outputs.APPLICATION_INSIGHTS_CONNECTION_STRING }}"
+          echo "VM Name: ${{ needs.provision-infrastructure.outputs.VM_NAME_OUTPUT }}"
+          echo "PostgreSQL FQDN: ${{ needs.provision-infrastructure.outputs.POSTGRES_SERVER_FQDN }}"
 
   delete-infrastructure:
     needs: [provision-infrastructure, e2e-tests]

@@ -1,7 +1,7 @@
 ---
 mode: 'agent'
-description: 'Create a new specification file for the demonstration of Copilot in Azure capabilities and features.'
-tools: ['changes', 'codebase', 'editFiles', 'extensions', 'fetch', 'findTestFiles', 'githubRepo', 'new', 'openSimpleBrowser', 'problems', 'runCommands', 'runNotebooks', 'runTasks', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure', 'usages', 'vscodeAPI', 'filesystem', 'websearch']
+description: 'Create a new specification file for the Azure AI Foundry solution accelerator project.'
+tools: ['changes', 'codebase', 'editFiles', 'extensions', 'fetch', 'githubRepo', 'openSimpleBrowser', 'problems', 'runTasks', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure', 'usages', 'vscodeAPI']
 ---
 Your goal is to create a new specification file for `${input:SpecPurpose}` in the [/spec/](/spec/) directory of this repository.
 The specification file must define the requirements, constraints, and interfaces for the solution components in a manner that is clear, unambiguous, and structured for effective use by Generative AIs. Follow established documentation standards and ensure the content is machine-readable and self-contained.
@@ -51,15 +51,25 @@ tags: [Optional: List of relevant tags or categories, e.g., `infrastructure`, `p
 - **GUD-001**: Guideline 1
 - **PAT-001**: Pattern to follow 1
 
-## 4. Rationale & Context
+## 4. Interfaces & Data Contracts
+
+[Describe the interfaces, APIs, data contracts, or integration points. Use tables or code blocks for schemas and examples.]
+
+## 5. Rationale & Context
 
 [Explain the reasoning behind the requirements, constraints, and guidelines. Provide context for design decisions.]
 
-## 5. Validation Criteria
+## 6. Examples & Edge Cases
+
+``````
+// Code snippet or data example demonstrating the correct application of the guidelines, including edge cases
+``````
+
+## 7. Validation Criteria
 
 [List the criteria or tests that must be satisfied for compliance with this specification.]
 
-## 6. Related Specifications / Further Reading
+## 8. Related Specifications / Further Reading
 
 [Link to related spec 1]  
 [Link to relevant external documentation]
