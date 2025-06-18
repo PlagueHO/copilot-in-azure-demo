@@ -47,8 +47,7 @@ var publicIpAppGwName = '${abbrs.networkPublicIPAddresses}appgw-${uniqueSuffix}'
 var publicIpVmName = '${abbrs.networkPublicIPAddresses}vm-${vmName}'
 var nicVmName = '${abbrs.networkNetworkInterfaces}${vmName}'
 
-var appServicePlanSkuName = 'P1v2'
-// var appServicePlanSkuTier = 'PremiumV2' // Removed as it's not used directly with AVM or native App Service Plan if SKU name implies tier
+var appServicePlanSkuName = 'P0v3'
 var postgreSqlSkuName = 'Standard_B1ms' // Burstable B1ms
 var vmSize = 'Standard_B2ms'
 var vmImageReference = {
@@ -120,9 +119,7 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
     // AVM module parameters for web/serverfarm:0.4.1
     // sku is an object with name, tier, family, capacity
     skuName: appServicePlanSkuName // Corrected: skuName is a direct parameter
-    // skuTier: appServicePlanSkuTier // tier is part of sku object for some modules, but direct for this one
-    // skuFamily: 'Pv2' // family is part of sku object
-    // skuCapacity: 1 // capacity is part of sku object
+    skuCapacity: 1
     kind: 'linux'
     reserved: true // Required for Linux plans
   }
