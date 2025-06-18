@@ -2,6 +2,7 @@ using './main.bicep'
 
 // Global parameters
 param location = readEnvironmentVariable('AZURE_LOCATION', 'EastUS2') // Specifies the Azure region for deployment. Overrides default in main.bicep.
+param environmentName = readEnvironmentVariable('AZURE_ENV_NAME', 'contosohotels-demo') // Name of the environment for resource naming.
 
 // Virtual Machine parameters
 param vmAdminUsername = readEnvironmentVariable('VM_ADMIN_USERNAME', 'demoadmin') // Username for the Virtual Machine.

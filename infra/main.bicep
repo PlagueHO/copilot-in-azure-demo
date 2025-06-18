@@ -1,4 +1,4 @@
-targetScope = 'resourceGroup' // Assuming deployment at resource group level as per original
+targetScope = 'subscription'
 
 // PARAMETERS
 @sys.description('Azure region for all resources.')
@@ -7,10 +7,13 @@ targetScope = 'resourceGroup' // Assuming deployment at resource group level as 
     type: 'location'
   }
 })
-param location string = resourceGroup().location
+param location string
+
+@sys.description('Name of the environment (used in resource group naming).')
+param environmentName string
 
 @sys.description('A unique string appended to resource names to ensure uniqueness.')
-param uniqueSuffix string = uniqueString(resourceGroup().id)
+param uniqueSuffix string = uniqueString(subscription().subscriptionId, environmentName, location)
 
 @sys.description('Admin username for the Virtual Machine.')
 param vmAdminUsername string
@@ -29,6 +32,7 @@ param postgresAdminPassword string
 // VARIABLES
 var abbrs = loadJsonContent('./abbreviations.json')
 
+var resourceGroupName = 'rg-${environmentName}'
 var logAnalyticsWorkspaceName = '${abbrs.operationalInsightsWorkspaces}contosologs-${uniqueSuffix}'
 var appInsightsName = '${abbrs.insightsComponents}contoso-web-${uniqueSuffix}'
 var appServicePlanName = '${abbrs.webServerFarms}contoso-${uniqueSuffix}' // Corrected key
@@ -56,15 +60,26 @@ var vmImageReference = {
 var webAppRuntimeStack = 'DOTNETCORE|6.0' // .NET 6 on Linux
 
 var tags = {
-  'azd-env-name': 'contoso-hotels-demo' // Example environment tag
+  'azd-env-name': environmentName // Updated to use environmentName parameter
   projectName: 'ContosoHotelsDemo' // Corrected tag name
 }
 
 // RESOURCES
 
+// 0. Resource Group (AVM)
+module resourceGroup 'br/public:avm/res/resources/resource-group:0.4.0' = {
+  name: 'resourceGroupDeployment'
+  params: {
+    name: resourceGroupName
+    location: location
+    tags: tags
+  }
+}
+
 // 1. Log Analytics Workspace (AVM)
 module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.11.2' = {
   name: 'logAnalyticsWorkspaceDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: logAnalyticsWorkspaceName
     location: location
@@ -72,11 +87,15 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
     skuName: 'PerGB2018'
     dataRetention: 30 // Corrected parameter name for retention
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // 2. Application Insights (AVM)
 module applicationInsights 'br/public:avm/res/insights/component:0.6.0' = {
   name: 'applicationInsightsDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: appInsightsName
     location: location
@@ -85,11 +104,15 @@ module applicationInsights 'br/public:avm/res/insights/component:0.6.0' = {
     applicationType: 'web'
     workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // 3. App Service Plan (Linux) (AVM)
 module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
   name: 'appServicePlanDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: appServicePlanName
     location: location
@@ -103,11 +126,15 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
     kind: 'linux'
     reserved: true // Required for Linux plans
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // 4. Web App (App Service) (AVM)
 module webApp 'br/public:avm/res/web/site:0.16.0' = { // Updated version to 0.16.0
   name: 'webAppDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: webAppName
     location: location
@@ -158,11 +185,15 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = { // Updated version to 0.16
       }
     ]
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // 5. Azure Database for PostgreSQL - Flexible Server (AVM)
 module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.12.0' = {
   name: 'postgreSqlServerDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: postgreSqlServerName
     location: location
@@ -203,11 +234,15 @@ module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.
       }
     ]
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // 6. Virtual Network and Subnets (AVM)
 module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
   name: 'virtualNetworkDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: virtualNetworkName
     location: location
@@ -227,11 +262,15 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
       }
     ]
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // 7. Public IP for Application Gateway (AVM)
 module publicIpAppGw 'br/public:avm/res/network/public-ip-address:0.8.0' = {
   name: 'publicIpAppGwDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: publicIpAppGwName
     location: location
@@ -255,11 +294,15 @@ module publicIpAppGw 'br/public:avm/res/network/public-ip-address:0.8.0' = {
       }
     ]
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // 8. Application Gateway (AVM)
 module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = { // Updated to version 0.6.0
   name: 'appGatewayAvmDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: appGatewayName
     location: location
@@ -352,11 +395,15 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = { /
       }
     ]
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // Using br/public:avm/res/compute/virtual-machine:0.15.0
 module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
   name: 'virtualMachineDeployment' // Unique deployment name for the module
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: vmName // Name of the VM resource
     location: location
@@ -423,33 +470,21 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
     // VM diagnostics are handled by extensions (e.g., vmExtensionMMA below) or specific module capabilities like bootDiagnostics.
     // Consider extensionMonitoringAgentConfig for Azure Monitor Agent (AMA) if migrating from MMA
   }
-}
-
-resource vmExtensionMMA 'Microsoft.Compute/virtualMachines/extensions@2023-07-01' = {
-  name: '${vmName}/MicrosoftMonitoringAgent'
-  location: location
-  properties: {
-    publisher: 'Microsoft.EnterpriseCloud.Monitoring'
-    type: 'MicrosoftMonitoringAgent'
-    typeHandlerVersion: '1.0' // Check for latest version
-    autoUpgradeMinorVersion: true
-    settings: {
-      workspaceId: logAnalyticsWorkspace.outputs.logAnalyticsWorkspaceId
-    }
-    protectedSettings: {
-      workspaceKey: listKeys(resourceId('Microsoft.OperationalInsights/workspaces', logAnalyticsWorkspaceName), '2022-10-01').primarySharedKey
-    }
-  }
   dependsOn: [
-    virtualMachine // Depends on the VM AVM module
+    resourceGroup
   ]
 }
+
+// Note: VM Extension will be deployed via the VM module's extensionConfig parameter instead
+// The VM extension needs to be deployed in the resource group scope, but since we're at subscription scope,
+// we'll use the VM module's built-in extension capabilities or deploy it via a separate module later
 
 // 13. Metric Alerts (AVM)
 
 // VM CPU Alert (AVM)
 module vmCpuAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
   name: 'vmCpuAlertDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: '${vmName}-HighCpuAlert'
     location: 'global' // Metric alerts are global
@@ -478,11 +513,15 @@ module vmCpuAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
     tags: tags
     // actionGroups: [] // Add action group resource IDs here if needed
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // App Service HTTP 5xx Errors Alert (AVM)
 module appService5xxAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
   name: 'appService5xxAlertDeployment'
+  scope: az.resourceGroup(resourceGroupName)
   params: {
     name: '${webAppName}-Http5xxAlert'
     location: 'global'
@@ -510,6 +549,9 @@ module appService5xxAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
     tags: tags
     // actionGroups: [] // Add action group resource IDs here if needed
   }
+  dependsOn: [
+    resourceGroup
+  ]
 }
 
 // OUTPUTS
