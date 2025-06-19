@@ -5,25 +5,25 @@
 ### Pre-Sales Scenario – Prompt 1
 
 ```text
-Suggest an architecture pattern and Azure services for an online hotel booking system with a web front-end, and a PostgreSQL database, and a VM for background services. Include best practices for security and availability.
+Suggest an architecture pattern and Azure services for an online hotel booking system with a web front-end, and a backend relational database. It should use PaaS services, be secure, and scalable for Contoso Hotels to handle high traffic during peak booking seasons.
 ```
 
 ### Pre-Sales Scenario – Prompt 2
 
 ```text
-What would be the estimated monthly cost of running this Azure architecture for Contoso Hotels?
+How does this solution follow Microsoft’s best practices, and what are the benefits for Contoso Hotels?
 ```
 
 ### Pre-Sales Scenario – Prompt 3
 
 ```text
-How does this solution follow Microsoft’s best practices, and what are the benefits for Contoso Hotels?
+What are the benefits of using Azure App Service for our web application as opposed to VMs?
 ```
 
-### (Optional) Pre-Sales Scenario – Prompt 4
+### Pre-Sales Scenario – Prompt 4
 
 ```text
-What are the benefits of using Azure App Service for our web application as opposed to VMs?
+Contoso Hotels have asked for an SLO of 99.99% from the reliable web application pattern - how can I achieve this?
 ```
 
 ## Persona 2: Cloud Architect (Brenda Rodriguez)

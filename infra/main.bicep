@@ -55,11 +55,15 @@ var virtualNetworkName = '${abbrs.networkVirtualNetworks}contoso-hotels-${unique
 var appGwSubnetName = 'snet-appgw'
 var frontendSubnetName = 'snet-frontend'
 var backendSubnetName = 'snet-backend'
+var vmSubnetName = 'snet-vm'
+var sharedSubnetName = 'snet-shared'
 var vmName = '${abbrs.computeVirtualMachines}contoso-backend'
+var vmComputerName = 'contosovm01' // Windows computer name must be 15 chars or less
 var appGatewayName = '${abbrs.networkApplicationGateways}contoso-${uniqueSuffix}'
 var publicIpAppGwName = '${abbrs.networkPublicIPAddresses}appgw-${uniqueSuffix}'
 var publicIpVmName = '${abbrs.networkPublicIPAddresses}vm-${vmName}'
 var nicVmName = '${abbrs.networkNetworkInterfaces}${vmName}'
+var keyVaultName = '${abbrs.keyVaultVaults}contoso-${uniqueSuffix}'
 
 var appServicePlanSkuName = 'P0v3'
 var postgreSqlSkuName = 'Standard_B1ms'
@@ -113,6 +117,104 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
         name: backendSubnetName
         addressPrefix: '10.0.2.0/24'
         delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
+      }
+      {
+        name: vmSubnetName
+        addressPrefix: '10.0.3.0/24'
+      }
+      {
+        name: sharedSubnetName
+        addressPrefix: '10.0.4.0/24'
+      }
+    ]
+  }
+  dependsOn: [
+    resourceGroup
+  ]
+}
+
+// 1a. Key Vault (AVM) - Secure secrets storage
+module keyVault 'br/public:avm/res/key-vault/vault:0.11.1' = {
+  name: 'keyVaultDeployment'
+  scope: az.resourceGroup(resourceGroupName)
+  params: {
+    name: keyVaultName
+    location: location
+    tags: tags
+    sku: 'standard'
+    enableRbacAuthorization: true
+    enablePurgeProtection: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 7
+    publicNetworkAccess: 'Disabled'
+    privateEndpoints: [
+      {
+        name: 'kv-${keyVaultName}-pe'
+        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[4]
+        service: 'vault'
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              name: 'privatelink-vaultcore-azure-net'
+              privateDnsZoneResourceId: keyVaultPrivateDnsZone.outputs.resourceId
+            }
+          ]
+        }
+      }
+    ]
+    secrets: [
+      {
+        name: 'postgres-admin-login'
+        value: postgresAdminLogin
+        contentType: 'text/plain'
+      }
+      {
+        name: 'postgres-admin-password'
+        value: postgresAdminPassword
+        contentType: 'text/plain'
+      }
+    ]
+    roleAssignments: [
+      {
+        principalId: principalId
+        roleDefinitionIdOrName: 'Key Vault Administrator'
+        principalType: principalIdType
+      }
+    ]
+    diagnosticSettings: [
+      {
+        name: 'send-to-log-analytics'
+        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+        logCategoriesAndGroups: [
+          {
+            categoryGroup: 'allLogs'
+          }
+        ]
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+          }
+        ]      }
+    ]
+  }
+  dependsOn: [
+    resourceGroup
+  ]
+}
+
+// 1b. Private DNS Zone for Key Vault (AVM)
+module keyVaultPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
+  name: 'keyVaultPrivateDnsZoneDeployment'
+  scope: az.resourceGroup(resourceGroupName)
+  params: {
+    name: 'privatelink.vaultcore.azure.net'
+    location: 'global'
+    tags: tags
+    virtualNetworkLinks: [
+      {
+        name: 'vnet-link-${virtualNetworkName}'
+        virtualNetworkResourceId: virtualNetwork.outputs.resourceId
+        registrationEnabled: false
       }
     ]
   }
@@ -415,20 +517,20 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
     frontendIPConfigurations: [
       {
         name: 'appGwPublicFrontendIp'
-        publicIPAddressId: publicIpAppGw.outputs.resourceId
-      }
+        publicIPAddressId: publicIpAppGw.outputs.resourceId      }
     ]
     frontendPorts: [
       {
         name: 'port_80'
-        port: 80      }
+        port: 80
+      }
     ]
     backendAddressPools: [
       {
         name: 'contosoWebAppBackendPool'
         backendAddresses: [
           {
-            fqdn: webAppName
+            fqdn: webApp.outputs.defaultHostname
           }
         ]
       }
@@ -459,7 +561,8 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
         httpListenerName: 'contosoWebAppHttpListener'
         backendAddressPoolName: 'contosoWebAppBackendPool'
         backendHttpSettingsName: 'contosoWebAppHttpSettings'
-        priority: 100      }
+        priority: 100
+      }
     ]
     probes: [
       {
@@ -485,8 +588,7 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
           {
             category: 'AllMetrics'
           }
-        ]
-      }
+        ]      }
     ]
   }
   dependsOn: [
@@ -517,9 +619,10 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
     nicConfigurations: [
       {
         name: nicVmName
-        ipConfigurations: [          {
+        ipConfigurations: [
+          {
             name: 'ipconfig1'
-            subnetResourceId: virtualNetwork.outputs.subnetResourceIds[2]
+            subnetResourceId: virtualNetwork.outputs.subnetResourceIds[3]
             privateIPAllocationMethod: 'Dynamic'
             pipConfiguration: {
               name: publicIpVmName
@@ -554,9 +657,8 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
           }
         ]
         enableAcceleratedNetworking: false
-      }
-    ]
-    computerName: vmName
+      }    ]
+    computerName: vmComputerName
     provisionVMAgent: true
     enableAutomaticUpdates: true
     patchMode: 'AutomaticByOS'
@@ -655,3 +757,12 @@ output VM_NAME_OUTPUT string = virtualMachine.outputs.name
 
 @sys.description('Fully Qualified Domain Name (FQDN) of the PostgreSQL server.')
 output POSTGRES_SERVER_FQDN string = postgreSqlServer.outputs.fqdn
+
+@sys.description('Name of the deployed Key Vault.')
+output KEY_VAULT_NAME string = keyVault.outputs.name
+
+@sys.description('URI of the deployed Key Vault.')
+output KEY_VAULT_URI string = keyVault.outputs.uri
+
+@sys.description('Resource ID of the deployed Key Vault.')
+output KEY_VAULT_RESOURCE_ID string = keyVault.outputs.resourceId
