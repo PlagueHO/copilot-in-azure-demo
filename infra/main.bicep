@@ -89,7 +89,39 @@ module resourceGroup 'br/public:avm/res/resources/resource-group:0.4.1' = {
   }
 }
 
-// 1. Log Analytics Workspace (AVM)
+// 1. Virtual Network and Subnets (AVM) - Must be early for dependencies
+module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
+  name: 'virtualNetworkDeployment'
+  scope: az.resourceGroup(resourceGroupName)
+  params: {
+    name: virtualNetworkName
+    location: location
+    tags: tags
+    addressPrefixes: [
+      '10.0.0.0/16'
+    ]
+    subnets: [
+      {
+        name: appGwSubnetName
+        addressPrefix: '10.0.0.0/24'
+      }
+      {
+        name: frontendSubnetName
+        addressPrefix: '10.0.1.0/24'
+      }
+      {
+        name: backendSubnetName
+        addressPrefix: '10.0.2.0/24'
+        delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
+      }
+    ]
+  }
+  dependsOn: [
+    resourceGroup
+  ]
+}
+
+// 2. Log Analytics Workspace (AVM)
 module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.11.2' = {
   name: 'logAnalyticsWorkspaceDeployment'
   scope: az.resourceGroup(resourceGroupName)
@@ -105,7 +137,7 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
   ]
 }
 
-// 2. Application Insights (AVM)
+// 3. Application Insights (AVM)
 module applicationInsights 'br/public:avm/res/insights/component:0.6.0' = {
   name: 'applicationInsightsDeployment'
   scope: az.resourceGroup(resourceGroupName)
@@ -122,7 +154,7 @@ module applicationInsights 'br/public:avm/res/insights/component:0.6.0' = {
   ]
 }
 
-// 3. App Service Plan (Linux) (AVM)
+// 4. App Service Plan (Linux) (AVM)
 module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
   name: 'appServicePlanDeployment'
   scope: az.resourceGroup(resourceGroupName)
@@ -301,37 +333,6 @@ module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.
   ]
 }
 
-// 6. Virtual Network and Subnets (AVM)
-module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
-  name: 'virtualNetworkDeployment'
-  scope: az.resourceGroup(resourceGroupName)
-  params: {
-    name: virtualNetworkName
-    location: location
-    tags: tags
-    addressPrefixes: [
-      '10.0.0.0/16'
-    ]
-    subnets: [      {
-        name: appGwSubnetName
-        addressPrefix: '10.0.0.0/24'
-      }
-      {
-        name: frontendSubnetName
-        addressPrefix: '10.0.1.0/24'
-      }
-      {
-        name: backendSubnetName
-        addressPrefix: '10.0.2.0/24'
-        delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
-      }
-    ]
-  }
-  dependsOn: [
-    resourceGroup
-  ]
-}
-
 // 7. Public IP for Application Gateway (AVM)
 module publicIpAppGw 'br/public:avm/res/network/public-ip-address:0.8.0' = {
   name: 'publicIpAppGwDeployment'
@@ -429,7 +430,8 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
           {
             fqdn: webAppName
           }
-        ]      }
+        ]
+      }
     ]
     backendHttpSettingsCollection: [
       {
