@@ -12,6 +12,16 @@ param location string
 @sys.description('Name of the environment (used in resource group naming).')
 param environmentName string
 
+@sys.description('Id of the user or app to assign application roles.')
+param principalId string
+
+@sys.description('Type of the principal referenced by principalId.')
+@allowed([
+  'User'
+  'ServicePrincipal'
+])
+param principalIdType string = 'User'
+
 @sys.description('A unique string appended to resource names to ensure uniqueness.')
 param uniqueSuffix string = uniqueString(subscription().subscriptionId, environmentName, location)
 
@@ -29,6 +39,9 @@ param postgresAdminLogin string
 @secure()
 param postgresAdminPassword string
 
+@sys.description('Enable encryption at host for the Virtual Machine. Requires feature enablement.')
+param enableEncryptionAtHost bool = false
+
 // VARIABLES
 var abbrs = loadJsonContent('./abbreviations.json')
 
@@ -40,6 +53,7 @@ var webAppName = '${abbrs.webSitesAppService}contoso-web-${uniqueSuffix}'
 var postgreSqlServerName = '${abbrs.dBforPostgreSQLServers}contoso-db-${uniqueSuffix}'
 var virtualNetworkName = '${abbrs.networkVirtualNetworks}contoso-hotels-${uniqueSuffix}'
 var appGwSubnetName = 'snet-appgw'
+var frontendSubnetName = 'snet-frontend'
 var backendSubnetName = 'snet-backend'
 var vmName = '${abbrs.computeVirtualMachines}contoso-backend'
 var appGatewayName = '${abbrs.networkApplicationGateways}contoso-${uniqueSuffix}'
@@ -126,6 +140,27 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
   ]
 }
 
+// 4a. Private DNS Zone for App Service (AVM)
+module appServicePrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
+  name: 'appServicePrivateDnsZoneDeployment'
+  scope: az.resourceGroup(resourceGroupName)
+  params: {
+    name: 'privatelink.azurewebsites.net'
+    location: 'global'
+    tags: tags
+    virtualNetworkLinks: [
+      {
+        name: 'vnet-link-appservice'
+        virtualNetworkResourceId: virtualNetwork.outputs.resourceId
+        registrationEnabled: false
+      }
+    ]
+  }
+  dependsOn: [
+    resourceGroup
+  ]
+}
+
 // 4. Web App (App Service) (AVM)
 module webApp 'br/public:avm/res/web/site:0.16.0' = {
   name: 'webAppDeployment'
@@ -154,12 +189,27 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
         {
           name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
           value: '~3'
-        }
-      ]
+        }      ]
     }
     managedIdentities: {
       systemAssigned: true
     }
+    privateEndpoints: [
+      {
+        name: 'pe-${webAppName}'
+        service: 'sites'
+        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1]
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: appServicePrivateDnsZone.outputs.resourceId
+            }
+          ]
+        }
+        tags: tags
+      }
+    ]
+    publicNetworkAccess: 'Disabled'
     diagnosticSettings: [
       {
         name: 'send-to-log-analytics'
@@ -182,6 +232,27 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
   ]
 }
 
+// 5a. Private DNS Zone for PostgreSQL (AVM)
+module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
+  name: 'privateDnsZoneDeployment'
+  scope: az.resourceGroup(resourceGroupName)
+  params: {
+    name: '${postgreSqlServerName}.private.postgres.database.azure.com'
+    location: 'global'
+    tags: tags
+    virtualNetworkLinks: [
+      {
+        name: 'vnet-link'
+        virtualNetworkResourceId: virtualNetwork.outputs.resourceId
+        registrationEnabled: false
+      }
+    ]
+  }
+  dependsOn: [
+    resourceGroup
+  ]
+}
+
 // 5. Azure Database for PostgreSQL - Flexible Server (AVM)
 module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.12.0' = {
   name: 'postgreSqlServerDeployment'
@@ -192,21 +263,22 @@ module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.
     tags: tags
     skuName: postgreSqlSkuName
     tier: 'Burstable'
-    availabilityZone: 1
+    availabilityZone: -1
     administratorLogin: postgresAdminLogin
     administratorLoginPassword: postgresAdminPassword
+    databases: [
+      {
+        name: 'hotelsdb'
+      }
+    ]
     version: '14'
     storageSizeGB: 32
     backupRetentionDays: 7
     geoRedundantBackup: 'Disabled'
     highAvailability: 'Disabled'
-    firewallRules: [
-      {
-        name: 'AllowAllWindowsAzureIps'
-        startIpAddress: '0.0.0.0'
-        endIpAddress: '0.0.0.0'
-      }
-    ]
+    delegatedSubnetResourceId: virtualNetwork.outputs.subnetResourceIds[2]
+    privateDnsZoneArmResourceId: privateDnsZone.outputs.resourceId
+    firewallRules: []
     diagnosticSettings: [
       {
         name: 'send-to-log-analytics'
@@ -240,14 +312,18 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
     addressPrefixes: [
       '10.0.0.0/16'
     ]
-    subnets: [
-      {
+    subnets: [      {
         name: appGwSubnetName
         addressPrefix: '10.0.0.0/24'
       }
       {
-        name: backendSubnetName
+        name: frontendSubnetName
         addressPrefix: '10.0.1.0/24'
+      }
+      {
+        name: backendSubnetName
+        addressPrefix: '10.0.2.0/24'
+        delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
       }
     ]
   }
@@ -288,6 +364,37 @@ module publicIpAppGw 'br/public:avm/res/network/public-ip-address:0.8.0' = {
   ]
 }
 
+// Web Application Firewall Policy
+module wafPolicy 'br/public:avm/res/network/application-gateway-web-application-firewall-policy:0.2.0' = {
+  name: 'wafPolicyDeployment'
+  scope: az.resourceGroup(resourceGroupName)
+  params: {
+    name: replace(appGatewayName, 'appgw', 'wafpol')
+    location: location
+    tags: tags
+    managedRules: {
+      managedRuleSets: [
+        {
+          ruleSetType: 'OWASP'
+          ruleSetVersion: '3.2'
+        }
+        {
+          ruleSetType: 'Microsoft_BotManagerRuleSet'
+          ruleSetVersion: '0.1'
+        }
+      ]
+    }
+    policySettings: {
+      state: 'Enabled'
+      mode: 'Prevention'
+      fileUploadLimitInMb: 100
+    }
+  }
+  dependsOn: [
+    resourceGroup
+  ]
+}
+
 // 8. Application Gateway (AVM)
 module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
   name: 'appGatewayAvmDeployment'
@@ -297,6 +404,7 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
     location: location
     tags: tags
     sku: 'WAF_v2'
+    firewallPolicyResourceId: wafPolicy.outputs.resourceId
     gatewayIPConfigurations: [
       {
         name: 'appGatewayIpConfig'
@@ -312,24 +420,22 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
     frontendPorts: [
       {
         name: 'port_80'
-        port: 80
-      }
+        port: 80      }
     ]
     backendAddressPools: [
       {
         name: 'contosoWebAppBackendPool'
         backendAddresses: [
           {
-            fqdn: webApp.outputs.defaultHostname
+            fqdn: webAppName
           }
-        ]
-      }
+        ]      }
     ]
     backendHttpSettingsCollection: [
       {
         name: 'contosoWebAppHttpSettings'
-        port: 80
-        protocol: 'Http'
+        port: 443
+        protocol: 'Https'
         cookieBasedAffinity: 'Disabled'
         pickHostNameFromBackendAddress: true
         requestTimeout: 30
@@ -351,13 +457,12 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
         httpListenerName: 'contosoWebAppHttpListener'
         backendAddressPoolName: 'contosoWebAppBackendPool'
         backendHttpSettingsName: 'contosoWebAppHttpSettings'
-        priority: 100
-      }
+        priority: 100      }
     ]
     probes: [
       {
         name: 'contosoWebAppProbe'
-        protocol: 'Http'
+        protocol: 'Https'
         path: '/'
         interval: 30
         timeout: 30
@@ -410,10 +515,9 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
     nicConfigurations: [
       {
         name: nicVmName
-        ipConfigurations: [
-          {
+        ipConfigurations: [          {
             name: 'ipconfig1'
-            subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1]
+            subnetResourceId: virtualNetwork.outputs.subnetResourceIds[2]
             privateIPAllocationMethod: 'Dynamic'
             pipConfiguration: {
               name: publicIpVmName
@@ -435,8 +539,16 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
           {
             name: 'nic-${nicVmName}-diagnostics'
             workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
-            logCategoriesAndGroups: [ { categoryGroup: 'allLogs' } ]
-            metricCategories: [ { category: 'AllMetrics' } ]
+            logCategoriesAndGroups: [
+              {
+                categoryGroup: 'allLogs'
+              }
+            ]
+            metricCategories: [
+              {
+                category: 'AllMetrics'
+              }
+            ]
           }
         ]
         enableAcceleratedNetworking: false
@@ -448,6 +560,7 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
     patchMode: 'AutomaticByOS'
     bootDiagnostics: true
     zone: 1
+    encryptionAtHost: enableEncryptionAtHost
   }
   dependsOn: [
     resourceGroup
