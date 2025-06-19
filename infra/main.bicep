@@ -197,7 +197,7 @@ module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.
     tags: tags
     skuName: postgreSqlSkuName // e.g., 'Standard_B1ms'
     tier: 'Burstable' // Must align with skuName
-    availabilityZone: -1 // No specific zone preference - required parameter in v0.12.0
+    availabilityZone: 1
     administratorLogin: postgresAdminLogin
     administratorLoginPassword: postgresAdminPassword
     version: '14' // Current version being used
@@ -393,7 +393,10 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = { /
     ]
   }
   dependsOn: [
-    resourceGroup
+    resourceGroup,
+    virtualNetwork,
+    publicIpAppGw,
+    webApp
   ]
 }
 
@@ -453,7 +456,7 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
             metricCategories: [ { category: 'AllMetrics' } ]
           }
         ]
-        // enableAcceleratedNetworking: false // Optional, depends on VM size and OS
+        enableAcceleratedNetworking: false
       }
     ]
     computerName: vmName // OS computer name
@@ -462,7 +465,7 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
     patchMode: 'AutomaticByOS' // For Windows
     bootDiagnostics: true // Enables boot diagnostics with a module-managed storage account
     // bootDiagnosticStorageAccountName: '' // Can specify a custom SA if needed
-    zone: 0 // 0 for no specific zone, 1, 2, or 3 for a specific zone. Required by 0.15.0.
+    zone: 1 // 0 for no specific zone, 1, 2, or 3 for a specific zone. Required by 0.15.0.
     // Removed diagnosticSettings block for the VM resource itself from module params.
     // VM diagnostics are handled by extensions (e.g., vmExtensionMMA below) or specific module capabilities like bootDiagnostics.
     // Consider extensionMonitoringAgentConfig for Azure Monitor Agent (AMA) if migrating from MMA

@@ -5,7 +5,7 @@
 ### Pre-Sales Scenario – Prompt 1
 
 ```text
-Generate a high-level Azure architecture for an online hotel booking system with a web front-end, an application gateway, a PostgreSQL database, and a VM for background services. Include best practices for security and availability.
+Suggest an architecture pattern and Azure services for an online hotel booking system with a web front-end, and a PostgreSQL database, and a VM for background services. Include best practices for security and availability.
 ```
 
 ### Pre-Sales Scenario – Prompt 2
