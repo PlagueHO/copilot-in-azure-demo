@@ -393,10 +393,7 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = { /
     ]
   }
   dependsOn: [
-    resourceGroup,
-    virtualNetwork,
-    publicIpAppGw,
-    webApp
+    resourceGroup
   ]
 }
 
