@@ -142,7 +142,7 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
 }
 
 // 1a. Key Vault (AVM) - Secure secrets storage
-module keyVault 'br/public:avm/res/key-vault/vault:0.11.1' = {
+module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
   name: 'keyVaultDeployment'
   scope: az.resourceGroup(resourceGroupName)
   params: {
@@ -178,14 +178,18 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.1' = {
       {
         name: 'sql-admin-password'
         value: sqlAdminPassword
-        contentType: 'text/plain'
-      }
+        contentType: 'text/plain'      }
     ]
     roleAssignments: [
       {
         principalId: principalId
         roleDefinitionIdOrName: 'Key Vault Administrator'
         principalType: principalIdType
+      }
+      {
+        principalId: webApp.outputs.systemAssignedMIPrincipalId!
+        roleDefinitionIdOrName: 'Key Vault Secrets User'
+        principalType: 'ServicePrincipal'
       }
     ]
     diagnosticSettings: [
@@ -200,8 +204,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.1' = {
         metricCategories: [
           {
             category: 'AllMetrics'
-          }
-        ]
+          }        ]
       }
     ]
   }
@@ -320,10 +323,10 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
       alwaysOn: true
       ftpsState: 'FtpsOnly'
       minTlsVersion: '1.2'
-      appSettings: [
-        {
+      appSettings: [        {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: applicationInsights.outputs.connectionString        }
+          value: applicationInsights.outputs.connectionString
+        }
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
           value: applicationInsights.outputs.instrumentationKey
@@ -331,6 +334,10 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
         {
           name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
           value: '~3'
+        }
+        {
+          name: 'ConnectionStrings__DefaultConnection'
+          value: 'Server=tcp:${sqlServerName}${environment().suffixes.sqlServerHostname},1433;Database=${sqlDatabaseName};Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
         }
       ]
     }
@@ -377,8 +384,8 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
 }
 
 // 5a. Private DNS Zone for SQL Database (AVM)
-module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
-  name: 'privateDnsZoneDeployment'
+module sqlPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
+  name: 'sqlPrivateDnsZoneDeployment'
   scope: az.resourceGroup(resourceGroupName)
   params: {
     name: 'privatelink${environment().suffixes.sqlServerHostname}'
@@ -386,7 +393,7 @@ module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
     tags: tags
     virtualNetworkLinks: [
       {
-        name: 'vnet-link'
+        name: 'vnet-link-sql'
         virtualNetworkResourceId: virtualNetwork.outputs.resourceId
         registrationEnabled: false
       }
@@ -398,7 +405,7 @@ module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
 }
 
 // 5. Azure SQL Database Server (AVM)
-module sqlServer 'br/public:avm/res/sql/server:0.8.0' = {
+module sqlServer 'br/public:avm/res/sql/server:0.19.0' = {
   name: 'sqlServerDeployment'
   scope: az.resourceGroup(resourceGroupName)
   params: {
@@ -407,6 +414,13 @@ module sqlServer 'br/public:avm/res/sql/server:0.8.0' = {
     tags: tags
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
+    administrators: {
+      azureADOnlyAuthentication: false
+      login: webApp.outputs.name
+      sid: webApp.outputs.systemAssignedMIPrincipalId!
+      principalType: 'Application'
+      tenantId: tenant().tenantId
+    }
     databases: [
       {
         name: sqlDatabaseName
@@ -433,18 +447,19 @@ module sqlServer 'br/public:avm/res/sql/server:0.8.0' = {
             ]
           }
         ]
+        zoneRedundant: false
       }
     ]
     publicNetworkAccess: 'Disabled'
     privateEndpoints: [
       {
         name: 'pe-sql-${sqlServerName}'
-        subnetResourceId: '${virtualNetwork.outputs.resourceId}/subnets/${backendSubnetName}'
+        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1]
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
             {
               name: 'privatelink-database-windows-net'
-              privateDnsZoneResourceId: privateDnsZone.outputs.resourceId
+              privateDnsZoneResourceId: sqlPrivateDnsZone.outputs.resourceId
             }
           ]
         }
@@ -454,6 +469,13 @@ module sqlServer 'br/public:avm/res/sql/server:0.8.0' = {
       state: 'Enabled'
       isAzureMonitorTargetEnabled: true
     }
+    roleAssignments: [
+      {
+        principalId: webApp.outputs.systemAssignedMIPrincipalId!
+        roleDefinitionIdOrName: 'SQL DB Contributor'
+        principalType: 'ServicePrincipal'
+      }
+    ]
   }
   dependsOn: [
     resourceGroup
@@ -546,7 +568,11 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
     frontendIPConfigurations: [
       {
         name: 'appGwPublicFrontendIp'
-        publicIPAddressId: publicIpAppGw.outputs.resourceId
+        properties: {
+          publicIPAddress: {
+            id: publicIpAppGw.outputs.resourceId
+          }
+        }
       }
     ]
     frontendPorts: [
@@ -554,57 +580,78 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
         name: 'frontendPort_80'
         properties: {
           port: 80
-        }
-      }
+        }      }
     ]
     backendAddressPools: [
       {
         name: 'contosoWebAppBackendPool'
-        backendAddresses: [
-          {
-            fqdn: webApp.outputs.defaultHostname
-          }
-        ]
+        properties: {
+          backendAddresses: [
+            {
+              fqdn: webApp.outputs.defaultHostname
+            }
+          ]
+        }
       }
     ]
     backendHttpSettingsCollection: [
       {
         name: 'contosoWebAppHttpSettings'
-        port: 443
-        protocol: 'Https'
-        cookieBasedAffinity: 'Disabled'
-        pickHostNameFromBackendAddress: true
-        requestTimeout: 30
-        probeName: 'contosoWebAppProbe'
+        properties: {
+          port: 443
+          protocol: 'Https'
+          cookieBasedAffinity: 'Disabled'
+          pickHostNameFromBackendAddress: true
+          requestTimeout: 30
+          probe: {
+            id: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Network/applicationGateways/${appGatewayName}/probes/contosoWebAppProbe'
+          }
+        }
       }
     ]
     httpListeners: [
       {
         name: 'contosoWebAppHttpListener'
-        frontendIPConfigurationName: 'appGwPublicFrontendIp'
-        frontendPortName: 'port_80'
-        protocol: 'Http'
+        properties: {
+          frontendIPConfiguration: {
+            id: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Network/applicationGateways/${appGatewayName}/frontendIPConfigurations/appGwPublicFrontendIp'
+          }
+          frontendPort: {
+            id: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Network/applicationGateways/${appGatewayName}/frontendPorts/frontendPort_80'
+          }
+          protocol: 'Http'
+        }
       }
     ]
     requestRoutingRules: [
       {
         name: 'basicRule'
-        ruleType: 'Basic'
-        httpListenerName: 'contosoWebAppHttpListener'
-        backendAddressPoolName: 'contosoWebAppBackendPool'
-        backendHttpSettingsName: 'contosoWebAppHttpSettings'
-        priority: 100
+        properties: {
+          ruleType: 'Basic'
+          httpListener: {
+            id: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Network/applicationGateways/${appGatewayName}/httpListeners/contosoWebAppHttpListener'
+          }
+          backendAddressPool: {
+            id: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Network/applicationGateways/${appGatewayName}/backendAddressPools/contosoWebAppBackendPool'
+          }
+          backendHttpSettings: {
+            id: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Network/applicationGateways/${appGatewayName}/backendHttpSettingsCollection/contosoWebAppHttpSettings'
+          }
+          priority: 100
+        }
       }
     ]
     probes: [
       {
         name: 'contosoWebAppProbe'
-        protocol: 'Https'
-        path: '/'
-        interval: 30
-        timeout: 30
-        unhealthyThreshold: 3
-        pickHostNameFromBackendHttpSettings: true
+        properties: {
+          protocol: 'Https'
+          path: '/'
+          interval: 30
+          timeout: 30
+          unhealthyThreshold: 3
+          pickHostNameFromBackendHttpSettings: true
+        }
       }
     ]
     diagnosticSettings: [
@@ -620,7 +667,8 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
           {
             category: 'AllMetrics'
           }
-        ]      }
+        ]
+      }
     ]
   }
   dependsOn: [

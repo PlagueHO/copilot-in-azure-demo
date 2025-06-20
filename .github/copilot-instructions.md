@@ -6,4 +6,5 @@ The key principles you should adopt when suggesting or creating the demonstratio
 - Aim to create a demonstration that is engaging, informative, and showcases the capabilities of Copilot in Azure.
 - Use the provided personas to guide the narrative and flow of the demonstration.
 - Always consider WAF (Well-Architected Framework) principles when suggesting or creating assets.
+- Use Azure Verified Modules (AVM) for Bicep wherever possible and refer to the documentation for the latest AVM versions in https://azure.github.io/Azure-Verified-Modules/indexes/bicep/bicep-resource-modules/
 - @azure Rule - Use Azure Best Practices: When generating code for Azure, running terminal commands for Azure, or performing operations related to Azure, invoke your `get_azure_best_practices` tool if available.
