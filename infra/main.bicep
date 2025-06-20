@@ -32,12 +32,21 @@ param vmAdminUsername string
 @secure()
 param vmAdminPassword string
 
-@sys.description('Admin username for the PostgreSQL server.')
-param postgresAdminLogin string
+@sys.description('Admin username for the SQL Database server.')
+param sqlAdminLogin string
 
-@sys.description('Admin password for the PostgreSQL server. Must meet complexity requirements.')
+@sys.description('Admin password for the SQL Database server. Must meet complexity requirements.')
 @secure()
-param postgresAdminPassword string
+param sqlAdminPassword string
+
+@sys.description('The Azure SQL Database server SKU name.')
+param sqlServerSkuName string = 'Basic'
+
+@sys.description('The Azure SQL Database server tier.')
+param sqlServerSkuTier string = 'Basic'
+
+@sys.description('The Azure SQL Database max size in GB.')
+param sqlDatabaseMaxSizeGB int = 2
 
 @sys.description('Enable encryption at host for the Virtual Machine. Requires feature enablement.')
 param enableEncryptionAtHost bool = false
@@ -50,7 +59,8 @@ var logAnalyticsWorkspaceName = '${abbrs.operationalInsightsWorkspaces}contosolo
 var appInsightsName = '${abbrs.insightsComponents}contoso-web-${uniqueSuffix}'
 var appServicePlanName = '${abbrs.webServerFarms}contoso-${uniqueSuffix}'
 var webAppName = '${abbrs.webSitesAppService}contoso-web-${uniqueSuffix}'
-var postgreSqlServerName = '${abbrs.dBforPostgreSQLServers}contoso-db-${uniqueSuffix}'
+var sqlServerName = '${abbrs.sqlServers}contoso-db-${uniqueSuffix}'
+var sqlDatabaseName = '${abbrs.sqlServersDatabases}hotelsdb-${uniqueSuffix}'
 var virtualNetworkName = '${abbrs.networkVirtualNetworks}contoso-hotels-${uniqueSuffix}'
 var appGwSubnetName = 'snet-appgw'
 var frontendSubnetName = 'snet-frontend'
@@ -66,7 +76,6 @@ var nicVmName = '${abbrs.networkNetworkInterfaces}${vmName}'
 var keyVaultName = '${abbrs.keyVaultVaults}contoso-${uniqueSuffix}'
 
 var appServicePlanSkuName = 'P0v3'
-var postgreSqlSkuName = 'Standard_B1ms'
 var vmSize = 'Standard_B2ms'
 var vmImageReference = {
   publisher: 'MicrosoftWindowsServer'
@@ -116,7 +125,6 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.7.0' = {
       {
         name: backendSubnetName
         addressPrefix: '10.0.2.0/24'
-        delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
       }
       {
         name: vmSubnetName
@@ -150,7 +158,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.1' = {
     privateEndpoints: [
       {
         name: 'kv-${keyVaultName}-pe'
-        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[4]
+        subnetResourceId: '${virtualNetwork.outputs.resourceId}/subnets/${sharedSubnetName}'
         service: 'vault'
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
@@ -159,18 +167,17 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.1' = {
               privateDnsZoneResourceId: keyVaultPrivateDnsZone.outputs.resourceId
             }
           ]
-        }
-      }
+        }      }
     ]
     secrets: [
       {
-        name: 'postgres-admin-login'
-        value: postgresAdminLogin
+        name: 'sql-admin-login'
+        value: sqlAdminLogin
         contentType: 'text/plain'
       }
       {
-        name: 'postgres-admin-password'
-        value: postgresAdminPassword
+        name: 'sql-admin-password'
+        value: sqlAdminPassword
         contentType: 'text/plain'
       }
     ]
@@ -194,7 +201,8 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.1' = {
           {
             category: 'AllMetrics'
           }
-        ]      }
+        ]
+      }
     ]
   }
   dependsOn: [
@@ -268,6 +276,7 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
     skuCapacity: 1
     kind: 'linux'
     reserved: true
+    zoneRedundant: false
   }
   dependsOn: [
     resourceGroup
@@ -314,8 +323,7 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
       appSettings: [
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: applicationInsights.outputs.connectionString
-        }
+          value: applicationInsights.outputs.connectionString        }
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
           value: applicationInsights.outputs.instrumentationKey
@@ -323,7 +331,8 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
         {
           name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
           value: '~3'
-        }      ]
+        }
+      ]
     }
     managedIdentities: {
       systemAssigned: true
@@ -332,10 +341,11 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
       {
         name: 'pe-${webAppName}'
         service: 'sites'
-        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1]
+        subnetResourceId: '${virtualNetwork.outputs.resourceId}/subnets/${frontendSubnetName}'
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
             {
+              name: 'privatelink-azurewebsites-net'
               privateDnsZoneResourceId: appServicePrivateDnsZone.outputs.resourceId
             }
           ]
@@ -366,12 +376,12 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
   ]
 }
 
-// 5a. Private DNS Zone for PostgreSQL (AVM)
+// 5a. Private DNS Zone for SQL Database (AVM)
 module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
   name: 'privateDnsZoneDeployment'
   scope: az.resourceGroup(resourceGroupName)
   params: {
-    name: '${postgreSqlServerName}.private.postgres.database.azure.com'
+    name: 'privatelink${environment().suffixes.sqlServerHostname}'
     location: 'global'
     tags: tags
     virtualNetworkLinks: [
@@ -387,48 +397,63 @@ module privateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
   ]
 }
 
-// 5. Azure Database for PostgreSQL - Flexible Server (AVM)
-module postgreSqlServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.12.0' = {
-  name: 'postgreSqlServerDeployment'
+// 5. Azure SQL Database Server (AVM)
+module sqlServer 'br/public:avm/res/sql/server:0.8.0' = {
+  name: 'sqlServerDeployment'
   scope: az.resourceGroup(resourceGroupName)
   params: {
-    name: postgreSqlServerName
+    name: sqlServerName
     location: location
     tags: tags
-    skuName: postgreSqlSkuName
-    tier: 'Burstable'
-    availabilityZone: -1
-    administratorLogin: postgresAdminLogin
-    administratorLoginPassword: postgresAdminPassword
+    administratorLogin: sqlAdminLogin
+    administratorLoginPassword: sqlAdminPassword
     databases: [
       {
-        name: 'hotelsdb'
+        name: sqlDatabaseName
+        availabilityZone: -1
+        sku: {
+          name: sqlServerSkuName
+          tier: sqlServerSkuTier
+        }
+        maxSizeBytes: sqlDatabaseMaxSizeGB * 1024 * 1024 * 1024
+        collation: 'SQL_Latin1_General_CP1_CI_AS'
+        diagnosticSettings: [
+          {
+            name: 'send-to-log-analytics'
+            workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+            logCategoriesAndGroups: [
+              {
+                categoryGroup: 'allLogs'
+              }
+            ]
+            metricCategories: [
+              {
+                category: 'AllMetrics'
+              }
+            ]
+          }
+        ]
       }
     ]
-    version: '14'
-    storageSizeGB: 32
-    backupRetentionDays: 7
-    geoRedundantBackup: 'Disabled'
-    highAvailability: 'Disabled'
-    delegatedSubnetResourceId: virtualNetwork.outputs.subnetResourceIds[2]
-    privateDnsZoneArmResourceId: privateDnsZone.outputs.resourceId
-    firewallRules: []
-    diagnosticSettings: [
+    publicNetworkAccess: 'Disabled'
+    privateEndpoints: [
       {
-        name: 'send-to-log-analytics'
-        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
-        logCategoriesAndGroups: [
-          {
-            categoryGroup: 'allLogs'
-          }
-        ]
-        metricCategories: [
-          {
-            category: 'AllMetrics'
-          }
-        ]
+        name: 'pe-sql-${sqlServerName}'
+        subnetResourceId: '${virtualNetwork.outputs.resourceId}/subnets/${backendSubnetName}'
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              name: 'privatelink-database-windows-net'
+              privateDnsZoneResourceId: privateDnsZone.outputs.resourceId
+            }
+          ]
+        }
       }
     ]
+    auditSettings: {
+      state: 'Enabled'
+      isAzureMonitorTargetEnabled: true
+    }
   }
   dependsOn: [
     resourceGroup
@@ -511,18 +536,25 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
     gatewayIPConfigurations: [
       {
         name: 'appGatewayIpConfig'
-        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[0]
+        properties: {
+          subnet: {
+            id: virtualNetwork.outputs.subnetResourceIds[0]
+          }
+        }
       }
     ]
     frontendIPConfigurations: [
       {
         name: 'appGwPublicFrontendIp'
-        publicIPAddressId: publicIpAppGw.outputs.resourceId      }
+        publicIPAddressId: publicIpAppGw.outputs.resourceId
+      }
     ]
     frontendPorts: [
       {
-        name: 'port_80'
-        port: 80
+        name: 'frontendPort_80'
+        properties: {
+          port: 80
+        }
       }
     ]
     backendAddressPools: [
@@ -622,7 +654,7 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
         ipConfigurations: [
           {
             name: 'ipconfig1'
-            subnetResourceId: virtualNetwork.outputs.subnetResourceIds[3]
+            subnetResourceId: '${virtualNetwork.outputs.resourceId}/subnets/${vmSubnetName}'
             privateIPAllocationMethod: 'Dynamic'
             pipConfiguration: {
               name: publicIpVmName
@@ -690,6 +722,7 @@ module vmCpuAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allof: [
         {
+          name: 'HighCpuUsage'
           metricName: 'Percentage CPU'
           metricNamespace: 'Microsoft.Compute/virtualMachines'
           operator: 'GreaterThan'
@@ -724,6 +757,7 @@ module appService5xxAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allof: [
         {
+          name: 'Http5xxErrors'
           metricName: 'Http5xx'
           metricNamespace: 'Microsoft.Web/sites'
           operator: 'GreaterThan'
@@ -755,8 +789,8 @@ output APPLICATION_INSIGHTS_CONNECTION_STRING string = applicationInsights.outpu
 @sys.description('Name of the deployed Virtual Machine.')
 output VM_NAME_OUTPUT string = virtualMachine.outputs.name
 
-@sys.description('Fully Qualified Domain Name (FQDN) of the PostgreSQL server.')
-output POSTGRES_SERVER_FQDN string = postgreSqlServer.outputs.fqdn
+@sys.description('Name of the deployed SQL Server.')
+output SQL_SERVER_NAME string = sqlServer.outputs.name
 
 @sys.description('Name of the deployed Key Vault.')
 output KEY_VAULT_NAME string = keyVault.outputs.name

@@ -17,11 +17,11 @@ This infrastructure deploys a secure, production-ready web application with the 
 | Application Insights | Application monitoring and telemetry | [avm/res/insights/component](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/insights/component) |
 | App Service Plan (Linux) | Hosting plan for web applications | [avm/res/web/serverfarm](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/web/serverfarm) |
 | Web App (App Service) | .NET Core 6.0 web application with private endpoint | [avm/res/web/site](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/web/site) |
-| PostgreSQL Flexible Server | Database backend in private subnet | [avm/res/db-for-postgre-sql/flexible-server](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/db-for-postgre-sql/flexible-server) |
+| Azure SQL Database Server | Database backend in private subnet | [avm/res/sql/server](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/sql/server) |
 | Application Gateway | Web application firewall and load balancer | [avm/res/network/application-gateway](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/application-gateway) |
 | WAF Policy | Web Application Firewall protection | [avm/res/network/application-gateway-web-application-firewall-policy](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/application-gateway-web-application-firewall-policy) |
 | Windows Virtual Machine | Backend processing server | [avm/res/compute/virtual-machine](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/compute/virtual-machine) |
-| Private DNS Zones (3) | DNS resolution for App Service, PostgreSQL, and Key Vault | [avm/res/network/private-dns-zone](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/private-dns-zone) |
+| Private DNS Zones (3) | DNS resolution for App Service, Azure SQL Database, and Key Vault | [avm/res/network/private-dns-zone](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/private-dns-zone) |
 | Public IP Addresses (2) | For Application Gateway and VM | [avm/res/network/public-ip-address](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/public-ip-address) |
 
 ### Monitoring & Alerting
@@ -45,15 +45,21 @@ flowchart TD
                 AppGw[Application Gateway<br/>WAF_v2 SKU]
                 AppGwIP[Public IP]
             end
-            
-            subgraph FrontendSubnet["Frontend Subnet (10.0.1.0/24)"]
+              subgraph FrontendSubnet["Frontend Subnet (10.0.1.0/24)"]
                 WebAppPE[Web App<br/>Private Endpoint]
             end
             
             subgraph BackendSubnet["Backend Subnet (10.0.2.0/24)"]
-                PostgreSQL[PostgreSQL<br/>Flexible Server]
+                SQLDatabase[Azure SQL Database<br/>Server with Private Endpoint]
+            end
+            
+            subgraph VMSubnet["VM Subnet (10.0.3.0/24)"]
                 VM[Windows VM<br/>Backend Server]
                 VMIP[VM Public IP]
+            end
+            
+            subgraph SharedSubnet["Shared Subnet (10.0.4.0/24)"]
+                KeyVaultPE[Key Vault<br/>Private Endpoint]
             end
         end
         
@@ -63,26 +69,26 @@ flowchart TD
             VMAlert[VM CPU Alert]
             AppAlert[App 5xx Alert]
         end
-        
-        subgraph Compute["Compute & Web"]
+          subgraph Compute["Compute & Web"]
             AppPlan[App Service Plan<br/>Linux P0v3]
             WebApp[Web App<br/>.NET Core 6.0]
+            KeyVault[Key Vault<br/>Secrets Storage]
         end
-        
-        subgraph DNS["Private DNS"]
+          subgraph DNS["Private DNS"]
             AppServiceDNS[privatelink.azurewebsites.net]
-            PostgreSQLDNS[private.postgres.database.azure.com]
+            SQLDatabaseDNS[privatelink.database.windows.net]
+            KeyVaultDNS[privatelink.vaultcore.azure.net]
         end
         
         WAFPolicy[WAF Policy<br/>OWASP 3.2]
-    end
-    
-    Internet --> AppGwIP
+    end    Internet --> AppGwIP
     AppGwIP --> AppGw
     AppGw --> WebAppPE
     WebAppPE --> WebApp
-    WebApp --> PostgreSQL
-    VM --> PostgreSQL
+    WebApp --> SQLDatabase
+    VM --> SQLDatabase
+    WebApp --> KeyVaultPE
+    KeyVaultPE --> KeyVault
     
     AppGw -.-> WAFPolicy
     WebApp -.-> AppInsights
@@ -91,7 +97,8 @@ flowchart TD
     AppAlert -.-> WebApp
     
     WebAppPE -.-> AppServiceDNS
-    PostgreSQL -.-> PostgreSQLDNS
+    SQLDatabase -.-> SQLDatabaseDNS
+    KeyVaultPE -.-> KeyVaultDNS
 ```
 
 ## Network Topology
@@ -104,11 +111,11 @@ The virtual network (10.0.0.0/16) is segmented into five subnets for security an
 |--------|---------------|---------|-----------|
 | `snet-appgw` | 10.0.0.0/24 | Application Gateway | Application Gateway |
 | `snet-frontend` | 10.0.1.0/24 | Frontend services | Web App Private Endpoint |
-| `snet-backend` | 10.0.2.0/24 | Backend database services | PostgreSQL Flexible Server |
+| `snet-backend` | 10.0.2.0/24 | Backend database services | Azure SQL Database Server |
 | `snet-vm` | 10.0.3.0/24 | Virtual machine services | Windows Virtual Machine |
 | `snet-shared` | 10.0.4.0/24 | Shared services | Key Vault Private Endpoint |
 
-> **Note:** The backend subnet has PostgreSQL delegation (`Microsoft.DBforPostgreSQL/flexibleServers`) to allow PostgreSQL Flexible Server deployment. The shared subnet hosts security-related services like Key Vault with private endpoints.
+> **Note:** The backend subnet is used for the Azure SQL Database private endpoint. The shared subnet hosts security-related services like Key Vault with private endpoints.
 
 ### Traffic Flow
 
@@ -117,15 +124,17 @@ sequenceDiagram
     participant Internet
     participant AppGateway as Application Gateway<br/>(WAF_v2)
     participant WebApp as Web App<br/>(Private Endpoint)
-    participant PostgreSQL as PostgreSQL<br/>(Private)
+    participant SQLDatabase as Azure SQL Database<br/>(Private)
+    participant KeyVault as Azure Key Vault<br/>(Private)
     participant VM as Virtual Machine
 
     Internet->>AppGateway: HTTPS Request
     Note over AppGateway: WAF Protection<br/>OWASP 3.2 Rules
     AppGateway->>WebApp: Routed to Private Endpoint
-    WebApp->>PostgreSQL: Database Query
+    WebApp->>KeyVault: Retrieve DB Credentials
+    WebApp->>SQLDatabase: Database Query
     WebApp->>VM: Backend Processing
-    VM->>PostgreSQL: Data Access
+    VM->>SQLDatabase: Data Access
     WebApp-->>AppGateway: Response
     AppGateway-->>Internet: HTTPS Response
 ```
@@ -133,8 +142,7 @@ sequenceDiagram
 ### Security Features
 
 1. **Network Isolation**
-   - Web App accessible only via private endpoint
-   - PostgreSQL deployed in private subnet with delegation
+   - Web App accessible only via private endpoint   - Azure SQL Database accessible only via private endpoint
    - **Key Vault accessible only via private endpoint in shared subnet**
    - No public database or secrets access
 
@@ -162,7 +170,7 @@ sequenceDiagram
    - Secure authentication to Azure services
 
 6. **Private DNS Resolution**
-   - Private DNS zones for App Service, PostgreSQL, and Key Vault
+   - Private DNS zones for App Service, Azure SQL Database, and Key Vault
    - VNET-linked for proper name resolution
 
 ## Security & Best Practices
@@ -188,8 +196,11 @@ Key parameters that can be customized during deployment:
 | `environmentName` | Environment name (dev/test/prod) | Required | - |
 | `vmAdminUsername` | VM administrator username | Required | - |
 | `vmAdminPassword` | VM administrator password | Required (secure) | - |
-| `postgresAdminLogin` | PostgreSQL admin username | Required | ✅ Stored as secret |
-| `postgresAdminPassword` | PostgreSQL admin password | Required (secure) | ✅ Stored as secret |
+| `sqlAdminLogin` | SQL Database admin username | Required | ✅ Stored as secret |
+| `sqlAdminPassword` | SQL Database admin password | Required (secure) | ✅ Stored as secret |
+| `sqlServerSkuName` | SQL Database SKU name | Basic | - |
+| `sqlServerSkuTier` | SQL Database tier | Basic | - |
+| `sqlDatabaseMaxSizeGB` | SQL Database max size in GB | 2 | - |
 | `enableEncryptionAtHost` | Enable VM encryption at host | false | - |
 
 > **Security Note:** Database credentials are automatically stored as secrets in Azure Key Vault during deployment. This follows Azure security best practices by ensuring sensitive credentials are never exposed in configuration files or deployment logs.
