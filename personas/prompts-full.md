@@ -29,64 +29,52 @@ Contoso Hotels have asked for an SLO of 99.99% from the reliable web application
 ### Pre-Sales Scenario – Prompt 5
 
 ```text
-Create a comprehensive cost comparison between running our hotel booking system on Azure versus on-premises infrastructure. Include 3-year TCO analysis and highlight cost optimization opportunities.
+What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data? Give this to me as a checklist.
 ```
 
 ### Pre-Sales Scenario – Prompt 6
 
 ```text
-What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data? Generate a security checklist.
+Demonstrate how Azure's AI and machine learning services could enhance Contoso Hotels' booking system with personalized recommendations and dynamic pricing. What services would you recommend?
 ```
 
 ### Pre-Sales Scenario – Prompt 7
 
 ```text
-Demonstrate how Azure's AI and machine learning services could enhance Contoso Hotels' booking system with personalized recommendations and dynamic pricing. What services would you recommend?
+Design a disaster recovery strategy for Contoso Hotels that guarantees business continuity. What's our RTO and RPO with Azure's DR capabilities?
 ```
 
 ### Pre-Sales Scenario – Prompt 8
 
 ```text
-Design a disaster recovery strategy for Contoso Hotels that guarantees business continuity. What's our RTO and RPO with Azure's DR capabilities?
+Show me how Azure's global infrastructure can help Contoso Hotels expand internationally. Which regions should we deploy to for optimal performance and compliance?
 ```
 
 ### Pre-Sales Scenario – Prompt 9
 
 ```text
-Show me how Azure's global infrastructure can help Contoso Hotels expand internationally. Which regions should we deploy to for optimal performance and compliance?
+How can Azure's sustainability features help Contoso Hotels achieve their carbon-neutral goals? Provide environmental impact metrics and green computing recommendations.
 ```
 
 ### Pre-Sales Scenario – Prompt 10
 
 ```text
-Generate a step-by-step migration roadmap from Contoso Hotels' current legacy system to Azure. Include timeline, risk mitigation, and business impact assessment.
+Create a real-time dashboard concept showing how Azure Monitor and Application Insights would give Contoso Hotels visibility into their booking system performance and customer experience.
 ```
 
 ### Pre-Sales Scenario – Prompt 11
 
 ```text
-How can Azure's sustainability features help Contoso Hotels achieve their carbon-neutral goals? Provide environmental impact metrics and green computing recommendations.
+What would be the business value and ROI of implementing Azure's serverless technologies (Functions, Logic Apps) for Contoso Hotels' event-driven booking workflows?
 ```
 
 ### Pre-Sales Scenario – Prompt 12
 
 ```text
-Create a real-time dashboard concept showing how Azure Monitor and Application Insights would give Contoso Hotels visibility into their booking system performance and customer experience.
-```
-
-### Pre-Sales Scenario – Prompt 13
-
-```text
-What would be the business value and ROI of implementing Azure's serverless technologies (Functions, Logic Apps) for Contoso Hotels' event-driven booking workflows?
-```
-
-### Pre-Sales Scenario – Prompt 14
-
-```text
 Design an omnichannel customer experience architecture using Azure services that integrates Contoso Hotels' website, mobile app, chatbots, and customer service systems.
 ```
 
-### Pre-Sales Scenario – Prompt 15
+### Pre-Sales Scenario – Prompt 13
 
 ```text
 How can Azure's IoT capabilities transform Contoso Hotels' operations with smart room automation, predictive maintenance, and guest experience enhancement?
@@ -127,40 +115,34 @@ Design a zero-trust network architecture for Contoso Hotels. How should I implem
 ### Architecture & Design Scenario – Prompt 6
 
 ```text
-Our Contoso Hotels system needs to handle 100,000 concurrent users during flash sales. Evaluate our current architecture and recommend specific scaling strategies and Azure services.
+Analyze the trade-offs between using Azure SQL Database versus Azure Database for PostgreSQL for our hotel booking system. Consider performance, features, and cost implications.
 ```
 
 ### Architecture & Design Scenario – Prompt 7
 
 ```text
-Analyze the trade-offs between using Azure SQL Database versus Azure Database for PostgreSQL for our hotel booking system. Consider performance, features, and cost implications.
+Design a multi-region active-active architecture for Contoso Hotels that ensures data consistency while minimizing latency for global customers. How do we handle conflict resolution?
 ```
 
 ### Architecture & Design Scenario – Prompt 8
 
 ```text
-Design a multi-region active-active architecture for Contoso Hotels that ensures data consistency while minimizing latency for global customers. How do we handle conflict resolution?
+What's the optimal network topology for our hotel infrastructure? Should we use hub-and-spoke, mesh, or virtual WAN architecture? Include connectivity to on-premises data centers.
 ```
 
 ### Architecture & Design Scenario – Prompt 9
 
 ```text
-What's the optimal network topology for our hotel infrastructure? Should we use hub-and-spoke, mesh, or virtual WAN architecture? Include connectivity to on-premises data centers.
+Evaluate Azure's PaaS versus IaaS options for our hotel booking workload. Create a decision matrix considering scalability, management overhead, security, and total cost of ownership.
 ```
 
 ### Architecture & Design Scenario – Prompt 10
 
 ```text
-Evaluate Azure's PaaS versus IaaS options for our hotel booking workload. Create a decision matrix considering scalability, management overhead, security, and total cost of ownership.
+How would implementing Azure ExpressRoute benefit Contoso Hotels' architecture for high availability and performance? What are the design considerations for connecting our on-premises data centers to Azure?
 ```
 
 ### Architecture & Design Scenario – Prompt 11
-
-```text
-Design a comprehensive backup and disaster recovery strategy that meets a 15-minute RPO and 1-hour RTO. What Azure services should we use and how do we test failover scenarios?
-```
-
-### Architecture & Design Scenario – Prompt 12
 
 ```text
 How should we architect our data pipeline to process real-time booking events, guest preferences, and business analytics? Recommend Azure services for streaming, storage, and analytics.
@@ -207,7 +189,7 @@ Generate a Bicep template to set up the Contoso Hotels environment: a Resource G
 ### Engineering/DevOps Scenario – Prompt 2
 
 ```text
-Deploying the web app, I get an error: 'Cannot connect to database: timeout expired'. What could be the cause and how do I fix it?
+Publishing the web app to the Azure Web App, I get an error: 'Publish using zip deploy option is not supported for MSBuild package type'. What could be the cause and how do I fix it?
 ```
 
 ### Engineering/DevOps Scenario – Prompt 3

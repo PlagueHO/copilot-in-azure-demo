@@ -12,7 +12,8 @@ This infrastructure deploys a secure, production-ready web application with the 
 |----------|---------|---------------|
 | Resource Group | Container for all resources | [avm/res/resources/resource-group](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/resources/resource-group) |
 | Virtual Network | Network foundation with 5 subnets | [avm/res/network/virtual-network](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/virtual-network) |
-| **Key Vault** | **Secure secrets storage with private endpoint** | **[avm/res/key-vault/vault](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/key-vault/vault)** |
+| Key Vault | Secure secrets storage with private endpoint | [avm/res/key-vault/vault](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/key-vault/vault) |
+| Storage Account | Application asset storage with private endpoint in backend subnet | [avm/res/storage/storage-account](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/storage/storage-account) |
 | Log Analytics Workspace | Centralized monitoring and diagnostics | [avm/res/operational-insights/workspace](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/operational-insights/workspace) |
 | Application Insights | Application monitoring and telemetry | [avm/res/insights/component](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/insights/component) |
 | App Service Plan (Linux) | Hosting plan for web applications | [avm/res/web/serverfarm](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/web/serverfarm) |
@@ -21,7 +22,7 @@ This infrastructure deploys a secure, production-ready web application with the 
 | Application Gateway | Web application firewall and load balancer | [avm/res/network/application-gateway](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/application-gateway) |
 | WAF Policy | Web Application Firewall protection | [avm/res/network/application-gateway-web-application-firewall-policy](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/application-gateway-web-application-firewall-policy) |
 | Windows Virtual Machine | Backend processing server | [avm/res/compute/virtual-machine](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/compute/virtual-machine) |
-| Private DNS Zones (3) | DNS resolution for App Service, Azure SQL Database, and Key Vault | [avm/res/network/private-dns-zone](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/private-dns-zone) |
+| Private DNS Zones (4) | DNS resolution for App Service, Azure SQL Database, Key Vault, and Storage | [avm/res/network/private-dns-zone](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/private-dns-zone) |
 | Public IP Addresses (2) | For Application Gateway and VM | [avm/res/network/public-ip-address](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/public-ip-address) |
 
 ### Monitoring & Alerting
@@ -113,9 +114,9 @@ The virtual network (10.0.0.0/16) is segmented into five subnets for security an
 | `snet-frontend` | 10.0.1.0/24 | Frontend services | Web App Private Endpoint |
 | `snet-backend` | 10.0.2.0/24 | Backend database services | Azure SQL Database Server |
 | `snet-vm` | 10.0.3.0/24 | Virtual machine services | Windows Virtual Machine |
-| `snet-shared` | 10.0.4.0/24 | Shared services | Key Vault Private Endpoint |
+| `snet-shared` | 10.0.4.0/24 | Shared services | Key Vault Private Endpoint, **Storage Account Private Endpoint** |
 
-> **Note:** The backend subnet is used for the Azure SQL Database private endpoint. The shared subnet hosts security-related services like Key Vault with private endpoints.
+> **Note:** The backend subnet hosts the Azure SQL Database private endpoint. The shared subnet hosts security and shared services like Key Vault and Storage Account with private endpoints.
 
 ### Traffic Flow
 
@@ -143,8 +144,9 @@ sequenceDiagram
 
 1. **Network Isolation**
    - Web App accessible only via private endpoint   - Azure SQL Database accessible only via private endpoint
+   - **Storage Account accessible only via private endpoint in shared subnet**
    - **Key Vault accessible only via private endpoint in shared subnet**
-   - No public database or secrets access
+   - No public database, storage, or secrets access
 
 2. **Secrets Management**
    - **Azure Key Vault stores all sensitive credentials**
@@ -161,16 +163,18 @@ sequenceDiagram
 4. **Monitoring & Alerting**
    - All resources send diagnostics to Log Analytics
    - **Key Vault audit logs captured in Log Analytics**
+   - **Storage Account access logs captured in Log Analytics**
    - VM CPU alerts when > 80% for 5 minutes
    - App Service alerts on HTTP 5xx errors > 5 in 5 minutes
 
 5. **Managed Identities**
    - Web App uses system-assigned managed identity
    - **RBAC-based access to Key Vault secrets**
+   - **Storage Blob Data Contributor access to Storage Account**
    - Secure authentication to Azure services
 
 6. **Private DNS Resolution**
-   - Private DNS zones for App Service, Azure SQL Database, and Key Vault
+   - Private DNS zones for App Service, Azure SQL Database, Key Vault, and Storage Account
    - VNET-linked for proper name resolution
 
 ## Security & Best Practices
@@ -180,11 +184,12 @@ sequenceDiagram
 3. **Centralized Monitoring** – All resources forward logs to Log Analytics workspace
 4. **Infrastructure as Code** – Deployed using Azure Verified Modules for consistency
 5. **Tagging Strategy** – All resources tagged with `azd-env-name` and `projectName`
-6. **Encryption** – TLS 1.2 minimum, HTTPS only for web applications
+6. **Encryption** – TLS 1.2 minimum, HTTPS only for web applications, infrastructure encryption enabled for Storage Account
 7. **Patch Management** – Automatic OS updates enabled for VM
 8. **Resource Naming** – Consistent naming using Azure abbreviations
 9. **Secrets Management** – All sensitive data stored in Azure Key Vault with RBAC
 10. **Private Connectivity** – All PaaS services use private endpoints for secure communication
+11. **Storage Security** – Storage Account configured with shared key access disabled, OAuth authentication default, and blob retention policies
 
 ## Configuration Parameters
 

@@ -74,6 +74,8 @@ var publicIpAppGwName = '${abbrs.networkPublicIPAddresses}appgw-${uniqueSuffix}'
 var publicIpVmName = '${abbrs.networkPublicIPAddresses}vm-${vmName}'
 var nicVmName = '${abbrs.networkNetworkInterfaces}${vmName}'
 var keyVaultName = '${abbrs.keyVaultVaults}contoso-${uniqueSuffix}'
+var storageAccountName = 'stcontoso${replace(uniqueSuffix, '-', '')}'
+var storagePrivateDnsZoneName = 'privatelink.blob.${environment().suffixes.storage}'
 
 var appServicePlanSkuName = 'P0v3'
 var vmSize = 'Standard_B2ms'
@@ -167,7 +169,8 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
               privateDnsZoneResourceId: keyVaultPrivateDnsZone.outputs.resourceId
             }
           ]
-        }      }
+        }
+      }
     ]
     secrets: [
       {
@@ -178,7 +181,8 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
       {
         name: 'sql-admin-password'
         value: sqlAdminPassword
-        contentType: 'text/plain'      }
+        contentType: 'text/plain'
+      }
     ]
     roleAssignments: [
       {
@@ -204,7 +208,8 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
         metricCategories: [
           {
             category: 'AllMetrics'
-          }        ]
+          }
+        ]
       }
     ]
   }
@@ -323,7 +328,8 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
       alwaysOn: true
       ftpsState: 'FtpsOnly'
       minTlsVersion: '1.2'
-      appSettings: [        {
+      appSettings: [
+        {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsights.outputs.connectionString
         }
@@ -348,7 +354,7 @@ module webApp 'br/public:avm/res/web/site:0.16.0' = {
       {
         name: 'pe-${webAppName}'
         service: 'sites'
-        subnetResourceId: '${virtualNetwork.outputs.resourceId}/subnets/${frontendSubnetName}'
+        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[1] // Frontend subnet
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
             {
@@ -580,7 +586,8 @@ module appGatewayAVM 'br/public:avm/res/network/application-gateway:0.6.0' = {
         name: 'frontendPort_80'
         properties: {
           port: 80
-        }      }
+        }
+      }
     ]
     backendAddressPools: [
       {
@@ -737,7 +744,8 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.15.0' = {
           }
         ]
         enableAcceleratedNetworking: false
-      }    ]
+      }
+    ]
     computerName: vmComputerName
     provisionVMAgent: true
     enableAutomaticUpdates: true
@@ -821,6 +829,102 @@ module appService5xxAlert 'br/public:avm/res/insights/metric-alert:0.4.0' = {
   ]
 }
 
+// 12. Storage Account (AVM) - For application assets
+module storageAccount 'br/public:avm/res/storage/storage-account:0.20.0' = {
+  name: 'storageAccountDeployment'
+  scope: az.resourceGroup(resourceGroupName)
+  params: {
+    name: storageAccountName
+    location: location
+    tags: tags
+    kind: 'StorageV2'
+    skuName: 'Standard_LRS'
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    defaultToOAuthAuthentication: true
+    publicNetworkAccess: 'Disabled'
+    requireInfrastructureEncryption: true
+    supportsHttpsTrafficOnly: true
+    minimumTlsVersion: 'TLS1_2'
+    managedIdentities: {
+      systemAssigned: true
+    }
+    privateEndpoints: [
+      {
+        service: 'blob'
+        subnetResourceId: virtualNetwork.outputs.subnetResourceIds[4] // Shared subnet
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: storagePrivateDnsZone.outputs.resourceId
+            }
+          ]
+        }
+      }
+    ]
+    blobServices: {
+      containers: [
+        {
+          name: 'data'
+          publicAccess: 'None'
+          metadata: {
+            purpose: 'Application asset storage for Contoso Hotels'
+          }
+        }
+      ]
+      containerDeleteRetentionPolicyEnabled: true
+      containerDeleteRetentionPolicyDays: 7
+      deleteRetentionPolicyEnabled: true
+      deleteRetentionPolicyDays: 7
+    }
+    diagnosticSettings: [
+      {
+        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+        logCategoriesAndGroups: [
+          {
+            categoryGroup: 'allLogs'
+          }
+        ]
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+          }
+        ]
+      }
+    ]
+    roleAssignments: [
+      {
+        principalId: webApp.outputs.systemAssignedMIPrincipalId!
+        roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+        principalType: 'ServicePrincipal'
+      }
+    ]
+  }
+  dependsOn: [
+    resourceGroup
+  ]
+}
+
+// 12a. Private DNS Zone for Storage Account (AVM)
+module storagePrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.7.1' = {
+  name: 'storagePrivateDnsZoneDeployment'
+  scope: az.resourceGroup(resourceGroupName)
+  params: {
+    name: storagePrivateDnsZoneName
+    location: 'global'
+    tags: tags
+    virtualNetworkLinks: [
+      {
+        virtualNetworkResourceId: virtualNetwork.outputs.resourceId
+        registrationEnabled: false
+      }
+    ]
+  }
+  dependsOn: [
+    resourceGroup
+  ]
+}
+
 // OUTPUTS
 @sys.description('Default hostname of the deployed Web App.')
 output WEBAPP_DEFAULT_HOST_NAME string = webApp.outputs.defaultHostname
@@ -848,3 +952,9 @@ output KEY_VAULT_URI string = keyVault.outputs.uri
 
 @sys.description('Resource ID of the deployed Key Vault.')
 output KEY_VAULT_RESOURCE_ID string = keyVault.outputs.resourceId
+
+@sys.description('Name of the deployed Storage Account.')
+output STORAGE_ACCOUNT_NAME string = storageAccount.outputs.name
+
+@sys.description('Resource ID of the deployed Storage Account.')
+output STORAGE_ACCOUNT_RESOURCE_ID string = storageAccount.outputs.resourceId

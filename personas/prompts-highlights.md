@@ -13,19 +13,25 @@ Suggest an architecture pattern and Azure services for an online hotel booking s
 ### Pre-Sales Scenario – Prompt 2
 
 ```text
-Create a comprehensive cost comparison between running our hotel booking system on Azure versus on-premises infrastructure. Include 3-year TCO analysis and highlight cost optimization opportunities.
+How does this solution follow Microsoft's best practices, and what are the benefits for Contoso Hotels?
 ```
 
 ### Pre-Sales Scenario – Prompt 3
 
 ```text
-What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data? Generate a security checklist.
+What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data? Give this to me as a checklist.
 ```
 
 ### Pre-Sales Scenario – Prompt 4
 
 ```text
-Generate a step-by-step migration roadmap from Contoso Hotels' current legacy system to Azure. Include timeline, risk mitigation, and business impact assessment.
+What are the benefits of using Azure App Service for our web application as opposed to VMs?
+```
+
+### Pre-Sales Scenario – Prompt 5
+
+```text
+Contoso Hotels have asked for an SLO of 99.99% from the reliable web application pattern - how can I achieve this?
 ```
 
 ## Persona 2: Cloud Architect (Brenda Rodriguez)
@@ -44,14 +50,17 @@ Design a zero-trust network architecture for Contoso Hotels. How should I implem
 
 ### Architecture & Design Scenario – Prompt 3
 
+> [!NOTE]
+> This prompt should start a question process.
+
 ```text
-Our Contoso Hotels system needs to handle 100,000 concurrent users during flash sales. Evaluate our current architecture and recommend specific scaling strategies and Azure services.
+Should I deploy an Azure Firewall or is the Application Gateway sufficient for securing the web application?
 ```
 
 ### Architecture & Design Scenario – Prompt 4
 
 ```text
-Design a comprehensive backup and disaster recovery strategy that meets a 15-minute RPO and 1-hour RTO. What Azure services should we use and how do we test failover scenarios?
+How would implementing Azure ExpressRoute benefit Contoso Hotels' architecture for high availability and performance? What are the design considerations for connecting our on-premises data centers to Azure?
 ```
 
 ## Persona 3: DevOps Engineer (Carlos Moreno)
@@ -65,7 +74,7 @@ Generate a Bicep template to set up the Contoso Hotels environment: a Resource G
 ### Engineering/DevOps Scenario – Prompt 2
 
 ```text
-Deploying the web app, I get an error: 'Cannot connect to database: timeout expired'. What could be the cause and how do I fix it?
+Publishing the web app to the Azure Web App, I get an error: 'Publish using zip deploy option is not supported for MSBuild package type'. What could be the cause and how do I fix it?
 ```
 
 ### Engineering/DevOps Scenario – Prompt 3
@@ -76,16 +85,21 @@ Generate an Azure CLI script to create a virtual network with three subnets: one
 
 ### Engineering/DevOps Scenario – Prompt 4
 
+> [!NOTE]
+> This prompt should start a question process.
+
 ```text
 Help me create a cost-efficient Linux VM for our backend processing server. I need it to be resilient but also budget-friendly for Contoso Hotels.
 ```
 
 ## Persona 4: IT Operations Lead / SRE (Diana Lee)
 
+These prompts require that the Contoso Hotels environment is already set up in Azure with the necessary resources and configurations. It also requires an Azure offer type that allows for [cost management data access](https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/understand-cost-mgt-data#supported-microsoft-azure-offers).
+
 ### Ops/SRE Scenario – Prompt 1
 
 ```text
-Summarize our Contoso Hotels costs for the last 6 months and identify the top 3 services driving our expenses. What recommendations do you have to reduce costs?
+Summarize our costs for the last 6 months and identify the top 3 services driving our expenses. What recommendations do you have to reduce costs?
 ```
 
 ### Ops/SRE Scenario – Prompt 2
@@ -101,6 +115,12 @@ Find all VMs that are currently running in our environment and stop any non-prod
 ```
 
 ### Ops/SRE Scenario – Prompt 4
+
+```text
+Is my Storage Account secure? Check for any security vulnerabilities or compliance issues, and provide recommendations to improve our security posture.
+```
+
+### Ops/SRE Scenario – Prompt 5
 
 ```text
 My web app can't connect to the database due to network security group rules. Can you help me troubleshoot the connectivity issue and create the necessary security rules?
