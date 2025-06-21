@@ -126,6 +126,24 @@ Is my Storage Account secure? Check for any security vulnerabilities or complian
 My web app can't connect to the database due to network security group rules. Can you help me troubleshoot the connectivity issue and create the necessary security rules?
 ```
 
+### Ops/SRE Scenario – Prompt 6
+
+```text
+Enable auto-healing on the Contoso web app and set up a rule to recycle the app if CPU usage stays high for 5 minutes.
+```
+
+### Ops/SRE Scenario – Prompt 7
+
+```text
+Restart all App Services in the Australia East region that are showing performance issues. Confirm the list before executing.
+```
+
+### Ops/SRE Scenario – Prompt 8
+
+```text
+Enable backup on all VMs in our production resource group that don't currently have backup configured.
+```
+
 ---
 
 ## Key Capabilities Demonstrated
