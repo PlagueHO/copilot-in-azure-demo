@@ -1,0 +1,62 @@
+Suggest an architecture pattern and Azure services for an online hotel booking system with a web front-end, and a backend relational database. It should use PaaS services, be secure, and scalable for Contoso Hotels to handle high traffic during peak booking seasons.
+[end]
+
+How does this solution follow Microsoft's best practices, and what are the benefits for Contoso Hotels?
+[end]
+
+What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data? Give this to me as a checklist.
+[end]
+
+What are the benefits of using Azure App Service for our web application as opposed to VMs?
+[end]
+
+Contoso Hotels have asked for an SLO of 99.99% from the reliable web application pattern - how can I achieve this?
+[end]
+
+Our architecture uses an App Service, a VM, Azure SQL Database, and an App Gateway. Do you see any security or compliance gaps in this design? What should we add or change to follow best practices?
+[end]
+
+Design a zero-trust network architecture for Contoso Hotels. How should I implement microsegmentation, identity verification, and least-privilege access across our Azure infrastructure?
+[end]
+
+Should I deploy an Azure Firewall or is the Application Gateway sufficient for securing the web application?
+[end]
+
+How would implementing Azure ExpressRoute benefit Contoso Hotels' architecture for high availability and performance? What are the design considerations for connecting our on-premises data centers to Azure?
+[end]
+
+Generate a Bicep template to set up the Contoso Hotels environment: a Resource Group, an App Service (Linux) for the web app, an Azure SQL Database server, a virtual network with two subnets (one for the App Gateway, one for the DB/VM), and an Application Gateway in the front.
+[end]
+
+Publishing the web app to the Azure Web App, I get an error: 'Publish using zip deploy option is not supported for MSBuild package type'. What could be the cause and how do I fix it?
+[end]
+
+Generate an Azure CLI script to create a virtual network with three subnets: one for App Gateway (10.0.1.0/24), one for App Services (10.0.2.0/24), and one for database (10.0.3.0/24) using the address space 10.0.0.0/16.
+[end]
+
+Help me create a cost-efficient Linux VM for our backend processing server. I need it to be resilient but also budget-friendly for Contoso Hotels.
+[end]
+
+Summarize our costs for the last 6 months and identify the top 3 services driving our expenses. What recommendations do you have to reduce costs?
+[end]
+
+Visualize our entire network topology across all subscriptions. I need to understand the connectivity between our App Gateway, App Services, and database infrastructure.
+[end]
+
+Find all VMs that are currently running in our environment and stop any non-production VMs to save costs during off-peak hours.
+[end]
+
+Is my Storage Account secure? Check for any security vulnerabilities or compliance issues, and provide recommendations to improve our security posture.
+[end]
+
+My web app can't connect to the database due to network security group rules. Can you help me troubleshoot the connectivity issue and create the necessary security rules?
+[end]
+
+Enable auto-healing on the Contoso web app and set up a rule to recycle the app if CPU usage stays high for 5 minutes.
+[end]
+
+Restart all App Services in the Australia East region that are showing performance issues. Confirm the list before executing.
+[end]
+
+Enable backup on all VMs in our production resource group that don't currently have backup configured.
+[end]
