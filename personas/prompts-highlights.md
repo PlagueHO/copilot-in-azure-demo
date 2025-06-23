@@ -146,6 +146,12 @@ Enable backup on all VMs in our production resource group that don't currently h
 
 ---
 
+### Other Language
+
+```text
+Résumez nos coûts des six derniers mois et identifiez les trois services principaux responsables de nos dépenses. Quelles recommandations proposez-vous pour réduire les coûts?
+```
+
 ## Key Capabilities Demonstrated
 
 These prompts showcase the following documented Azure Copilot capabilities:
