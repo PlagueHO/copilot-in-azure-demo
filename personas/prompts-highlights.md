@@ -86,6 +86,10 @@ Generate an Azure CLI script to create a virtual network with three subnets: one
 Help me create a cost-efficient Linux VM for our backend processing server. I need it to be resilient but also budget-friendly for Contoso Hotels.
 ```
 
+```text
+It requires 8GB RAM and it can send about 100 invoices a second per CPU. Needs to send about 15000 invoices each week and only runs once per week.
+```
+
 ## Persona 4: IT Operations Lead / SRE (Diana Lee)
 
 These prompts require that the Contoso Hotels environment is already set up in Azure with the necessary resources and configurations. It also requires an Azure offer type that allows for [cost management data access](https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/understand-cost-mgt-data#supported-microsoft-azure-offers).
