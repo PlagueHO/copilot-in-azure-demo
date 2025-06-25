@@ -19,7 +19,7 @@ How does this solution follow Microsoft's best practices, and what are the benef
 ### Pre-Sales Scenario – Prompt 3
 
 ```text
-What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data? Give this to me as a checklist.
+What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data?
 ```
 
 ### Pre-Sales Scenario – Prompt 4
@@ -44,12 +44,6 @@ Our architecture uses an App Service, a VM, Azure SQL Database, and an App Gatew
 
 ### Architecture & Design Scenario – Prompt 2
 
-```text
-Design a zero-trust network architecture for Contoso Hotels. How should I implement microsegmentation, identity verification, and least-privilege access across our Azure infrastructure?
-```
-
-### Architecture & Design Scenario – Prompt 3
-
 > [!NOTE]
 > This prompt should start a question process.
 
@@ -57,7 +51,7 @@ Design a zero-trust network architecture for Contoso Hotels. How should I implem
 Should I deploy an Azure Firewall or is the Application Gateway sufficient for securing the web application?
 ```
 
-### Architecture & Design Scenario – Prompt 4
+### Architecture & Design Scenario – Prompt 3
 
 ```text
 How would implementing Azure ExpressRoute benefit Contoso Hotels' architecture for high availability and performance? What are the design considerations for connecting our on-premises data centers to Azure?

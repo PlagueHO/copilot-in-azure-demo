@@ -4,7 +4,7 @@ Suggest an architecture pattern and Azure services for an online hotel booking s
 How does this solution follow Microsoft's best practices, and what are the benefits for Contoso Hotels?
 [end]
 
-What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data? Give this to me as a checklist.
+What are the security benefits and compliance features Azure provides for a hotel booking system that handles PCI DSS requirements and guest personal data?
 [end]
 
 What are the benefits of using Azure App Service for our web application as opposed to VMs?
@@ -14,9 +14,6 @@ Contoso Hotels have asked for an SLO of 99.99% from the reliable web application
 [end]
 
 Our architecture uses an App Service, a VM, Azure SQL Database, and an App Gateway. Do you see any security or compliance gaps in this design? What should we add or change to follow best practices?
-[end]
-
-Design a zero-trust network architecture for Contoso Hotels. How should I implement microsegmentation, identity verification, and least-privilege access across our Azure infrastructure?
 [end]
 
 Should I deploy an Azure Firewall or is the Application Gateway sufficient for securing the web application?

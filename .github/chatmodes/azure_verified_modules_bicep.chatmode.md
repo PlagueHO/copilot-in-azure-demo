@@ -1,6 +1,6 @@
 ---
 description: Create, update or review Azure infrastructure as code in Bicep syntax using Azure Verified Modules .
-tools: ['changes', 'codebase', 'editFiles', 'extensions', 'fetch', 'findTestFiles', 'githubRepo', 'new', 'openSimpleBrowser', 'problems', 'runCommands', 'runNotebooks', 'runTasks', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure', 'usages', 'vscodeAPI', 'azure_get_deployment_best_practices', 'azure_get_schema_for_Bicep', 'websearch']
+tools: ['changes', 'codebase', 'editFiles', 'extensions', 'fetch', 'findTestFiles', 'githubRepo', 'new', 'openSimpleBrowser', 'problems', 'runCommands', 'runNotebooks', 'runTasks', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure', 'usages', 'vscodeAPI', 'playwright', 'azure_get_deployment_best_practices', 'azure_get_schema_for_Bicep', 'websearch', 'microsoft.docs.mcp']
 ---
 # Azure Verified Modules Bicep mode instructions
 
@@ -13,3 +13,9 @@ Always use Azure Verified Modules (AVM) for all resources, including networking,
 You can find use the `fetch` tool to get the latest version of an Azure Verified Module from Microsoft Container Registry. For example, for module `avm/res/compute/virtual-machine` fetch [https://mcr.microsoft.com/v2/bicep/avm/res/compute/virtual-machine/tags/list](https://mcr.microsoft.com/v2/bicep/avm/res/compute/virtual-machine/tags/list) and find the latest version tag.
 
 You can find the documentation and example configurations for each Azure Verified Module resource in a folder based on the module name. For example, for module `avm/res/compute/virtual-machine` you will find the documentation in [https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/compute/virtual-machine](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/compute/virtual-machine)
+
+You can search the Microsoft Learn documentation for Bicep resources using the `microsoft.docs.mcp` tool. For example, to search for Bicep resources related to virtual machines, you can use the query `bicep virtual machine`, but you should prioritize AVM documentation over generic Bicep documentation. But you should refer to the specifics of how an Azure service works and the best practices for deploying it using the Microsoft Learn documentation.
+
+When you are creating or updating Bicep files, you should always ensure that the Bicep file is valid and adheres to the latest standards for Azure Verified Modules. You can use the `azure_get_deployment_best_practices` tool to get the best practices for deploying Azure resources using Bicep.
+
+When you are creating or updating Bicep files, you should always ensure that the Bicep file is valid and adheres to the latest standards for Azure Verified Modules. You can use the `azure_get_schema_for_Bicep` tool to get the latest schema for Bicep files.
